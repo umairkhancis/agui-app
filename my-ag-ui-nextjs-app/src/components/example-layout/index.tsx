@@ -43,10 +43,9 @@ export function ExampleLayout({ chatContent, appContent }: ExampleLayoutProps) {
         }`}
       >
         <div className="shrink-0 pt-6 pl-6 pb-2 max-lg:pl-4 max-lg:pt-4 flex gap-1.5 items-center align-center">
-          <span className="font-extrabold text-2xl pb-1.5">CopilotKit</span>
           <img
-            src="/copilotkit-logo-mark.svg"
-            alt="CopilotKit"
+            src="/talabat-logo.png"
+            alt="Talabat"
             className="h-7"
           />
         </div>

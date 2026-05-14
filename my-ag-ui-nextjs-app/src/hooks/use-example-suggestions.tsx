@@ -30,7 +30,7 @@ export const useExampleSuggestions = () => {
       {
         title: "Schedule Meeting (Human In The Loop)",
         message:
-          "I'd like to schedule a 30-minute meeting to learn about CopilotKit. Please use the scheduleTime tool to let me pick a time.",
+          "I'd like to schedule a 30-minute meeting to learn about Talabat. Please use the scheduleTime tool to let me pick a time.",
       },
       {
         title: "Search Flights (A2UI Fixed Schema)",
@@ -61,7 +61,7 @@ export const useExampleSuggestions = () => {
       {
         title: "Task Manager (Shared State)",
         message:
-          "Enable app mode and add three todos about learning CopilotKit: one about reading the docs, one about building a prototype, and one about exploring agent state.",
+          "Enable app mode and add three todos about learning Talabat: one about reading the docs, one about building a prototype, and one about exploring agent state.",
       },
     ],
     available: "always",

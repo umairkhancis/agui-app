@@ -1,5 +1,5 @@
 /**
- * CopilotKit brand chart palette — Plus Jakarta Sans / brand color system.
+ * Talabat brand chart palette — Plus Jakarta Sans / brand color system.
  */
 export const CHART_COLORS = [
   "#BEC2FF", // lilac-400

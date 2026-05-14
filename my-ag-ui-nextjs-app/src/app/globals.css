@@ -1,4 +1,4 @@
-/* CopilotKit brand fonts */
+/* Talabat brand fonts */
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300..800&family=Spline+Sans+Mono:wght@400;500;600&display=swap");
 
 @import "tailwindcss";
@@ -9,7 +9,7 @@
   --background: #ffffff;
   --foreground: #010507;
 
-  /* Semantic tokens — CopilotKit brand */
+  /* Semantic tokens — Talabat brand */
   --card: #ffffff;
   --card-foreground: #010507;
   --primary: #010507;
@@ -33,7 +33,7 @@
 
   --radius: 0.75rem;
 
-  /* Override CopilotKit font */
+  /* Override Talabat font */
   --cpk-default-font-family: var(--font-body);
 
   /* Fonts */
@@ -95,7 +95,7 @@ html {
 /*
  * Showcase highlight for suggestion pills.
  * Applied via className in use-example-suggestions.tsx when showcase.json
- * is set to a non-default mode (e.g. "a2ui", "opengenui"). Uses CopilotKit
+ * is set to a non-default mode (e.g. "a2ui", "opengenui"). Uses Talabat
  * brand colors with a subtle tinted background.
  * Add new showcase variants here following the same pattern.
  */
