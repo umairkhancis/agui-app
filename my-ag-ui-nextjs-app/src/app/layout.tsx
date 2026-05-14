@@ -1,7 +1,5 @@
 "use client";
 
-declare module '@copilotkit/react-core/v2/styles.css';
-
 import "./globals.css";
 import "@copilotkit/react-core/v2/styles.css";
 
