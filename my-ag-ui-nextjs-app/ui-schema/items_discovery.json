@@ -1,0 +1,130 @@
+[
+  {
+    "id": "root",
+    "component": "Column",
+    "children": [
+      "header-row",
+      "carousel-list"
+    ],
+    "align": "stretch"
+  },
+  {
+    "id": "header-row",
+    "component": "Row",
+    "children": [
+      "menu-icon",
+      "menu-title"
+    ],
+    "align": "center"
+  },
+  {
+    "id": "menu-icon",
+    "component": "Icon",
+    "name": "restaurant_menu"
+  },
+  {
+    "id": "menu-title",
+    "component": "Text",
+    "text": "Menu Items",
+    "variant": "h3"
+  },
+  {
+    "id": "carousel-list",
+    "component": "List",
+    "children": {
+      "path": "/menuItems",
+      "componentId": "menu-item-template"
+    },
+    "direction": "horizontal",
+    "align": "stretch",
+    "gap": 16
+  },
+  {
+    "id": "menu-item-template",
+    "component": "Card",
+    "child": "item-column"
+  },
+  {
+    "id": "item-column",
+    "component": "Column",
+    "children": [
+      "item-content",
+      "add-button"
+    ],
+    "align": "stretch",
+    "justify": "spaceBetween",
+    "gap": 12
+  },
+  {
+    "id": "item-content",
+    "component": "Column",
+    "children": [
+      "item-image",
+      "item-name",
+      "item-description",
+      "item-price"
+    ],
+    "align": "stretch",
+    "gap": 6
+  },
+  {
+    "id": "item-image",
+    "component": "Image",
+    "url": {
+      "path": "imageUrl"
+    },
+    "fit": "cover",
+    "variant": "mediumFeature"
+  },
+  {
+    "id": "item-name",
+    "component": "Text",
+    "text": {
+      "path": "name"
+    },
+    "variant": "h4"
+  },
+  {
+    "id": "item-description",
+    "component": "Text",
+    "text": {
+      "path": "description"
+    },
+    "variant": "caption"
+  },
+  {
+    "id": "item-price",
+    "component": "Text",
+    "text": {
+      "call": "formatCurrency",
+      "args": {
+        "value": {
+          "path": "price"
+        },
+        "currency": "AED"
+      },
+      "returnType": "string"
+    },
+    "variant": "body"
+  },
+  {
+    "id": "add-button-text",
+    "component": "Text",
+    "text": "Add"
+  },
+  {
+    "id": "add-button",
+    "component": "Button",
+    "child": "add-button-text",
+    "action": {
+      "event": {
+        "name": "addToCart",
+        "context": {
+          "itemId": {
+            "path": "id"
+          }
+        }
+      }
+    }
+  }
+]

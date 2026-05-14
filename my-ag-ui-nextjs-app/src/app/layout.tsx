@@ -19,6 +19,11 @@ export default function RootLayout({
           type="image/png"
           href="/talabat-logo.png"
         />
+        {/* Material Symbols font — required for A2UI basic Icon component. */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
+        />
       </head>
       <body className={`antialiased`}>
         <ThemeProvider>

@@ -51,11 +51,35 @@ export const demonstrationCatalogDefinitions = {
     props: z.object({
       gap: z.number().optional(),
       align: z.string().optional(),
+      justify: z.string().optional(),
       // Same union as Row — required for template children support.
       children: z.union([
         z.array(z.string()),
         z.object({ componentId: z.string(), path: z.string() }),
       ]),
+    }),
+  },
+
+  List: {
+    description:
+      "A horizontal or vertical list. Overrides the basic List to add `gap` so cards inside a horizontal carousel are spaced rather than flush.",
+    props: z.object({
+      direction: z.enum(["horizontal", "vertical"]).optional(),
+      align: z.string().optional(),
+      gap: z.number().optional(),
+      children: z.union([
+        z.array(z.string()),
+        z.object({ componentId: z.string(), path: z.string() }),
+      ]),
+    }),
+  },
+
+  Card: {
+    description:
+      "A card container with a single child slot. Overrides the basic Card to give nicer padding, rounded corners, and a sensible min-width so cards inside a horizontal List don't collapse.",
+    props: z.object({
+      child: z.string().optional(),
+      variant: z.enum(["flat", "elevation", "outlined"]).optional(),
     }),
   },
 

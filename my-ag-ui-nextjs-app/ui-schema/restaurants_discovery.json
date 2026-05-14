@@ -1,0 +1,128 @@
+[
+  {
+    "id": "root",
+    "component": "Column",
+    "children": [
+      "header-row",
+      "carousel-list"
+    ],
+    "align": "stretch"
+  },
+  {
+    "id": "header-row",
+    "component": "Row",
+    "children": [
+      "header-icon",
+      "header-text"
+    ],
+    "align": "center"
+  },
+  {
+    "id": "header-icon",
+    "component": "Icon",
+    "name": "restaurant_menu",
+    "variant": "header",
+    "color": "#EB6030"
+  },
+  {
+    "id": "header-text",
+    "component": "Text",
+    "text": "Nearby Restaurants",
+    "variant": "h3",
+    "weight": 1,
+    "color": "#EB6030"
+  },
+  {
+    "id": "carousel-list",
+    "component": "List",
+    "children": {
+      "path": "/restaurants",
+      "componentId": "restaurant-card"
+    },
+    "direction": "horizontal",
+    "align": "stretch",
+    "gap": 16
+  },
+  {
+    "id": "restaurant-card",
+    "component": "Card",
+    "child": "restaurant-column"
+  },
+  {
+    "id": "restaurant-column",
+    "component": "Column",
+    "children": [
+      "restaurant-image",
+      "restaurant-info"
+    ],
+    "align": "start"
+  },
+  {
+    "id": "restaurant-image",
+    "component": "Image",
+    "url": {
+      "path": "imageUrl"
+    },
+    "fit": "cover",
+    "variant": "mediumFeature"
+  },
+  {
+    "id": "restaurant-info",
+    "component": "Column",
+    "children": [
+      "restaurant-name",
+      "restaurant-rating-row",
+      "restaurant-cuisine"
+    ],
+    "align": "start",
+    "weight": 1
+  },
+  {
+    "id": "restaurant-name",
+    "component": "Text",
+    "text": {
+      "path": "name"
+    },
+    "variant": "h4",
+    "weight": 1,
+    "color": "#EB6030"
+  },
+  {
+    "id": "restaurant-rating-row",
+    "component": "Row",
+    "children": [
+      "rating-stars",
+      "rating-count"
+    ],
+    "align": "center"
+  },
+  {
+    "id": "rating-stars",
+    "component": "Text",
+    "text": {
+      "path": "stars"
+    },
+    "variant": "body"
+  },
+  {
+    "id": "rating-count",
+    "component": "Text",
+    "text": {
+      "call": "formatString",
+      "args": {
+        "value": "(${formatNumber(value: ${reviewCount})} ${pluralize(value: ${reviewCount}, one: 'review', other: 'reviews')})"
+      },
+      "returnType": "string"
+    },
+    "variant": "caption"
+  },
+  {
+    "id": "restaurant-cuisine",
+    "component": "Text",
+    "text": {
+      "path": "cuisine"
+    },
+    "variant": "caption",
+    "color": "#666666"
+  }
+]

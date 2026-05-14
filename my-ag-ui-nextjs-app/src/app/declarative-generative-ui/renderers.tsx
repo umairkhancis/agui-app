@@ -143,13 +143,19 @@ const demonstrationCatalogRenderers: CatalogRenderers<DemonstrationCatalogDefini
         spaceBetween: "space-between",
       };
       const items = Array.isArray(props.children) ? props.children : [];
+      const alignMap: Record<string, string> = {
+        start: "flex-start",
+        center: "center",
+        end: "flex-end",
+        stretch: "stretch",
+      };
       return (
         <div
           style={{
             display: "flex",
             flexDirection: "row",
-            gap: `${props.gap ?? 16}px`,
-            alignItems: props.align ?? "stretch",
+            gap: `${props.gap ?? 12}px`,
+            alignItems: alignMap[props.align ?? "stretch"] ?? props.align ?? "stretch",
             justifyContent:
               justifyMap[props.justify ?? "start"] ?? "flex-start",
             flexWrap: "wrap",
@@ -157,11 +163,15 @@ const demonstrationCatalogRenderers: CatalogRenderers<DemonstrationCatalogDefini
           }}
         >
           {items.map((item: any, i: number) => {
+            // Template children (e.g. flight cards from a /flights path) fill
+            // equally. Plain string-id children (used inside cards for inline
+            // rows like rating + review-count) size to their content so labels
+            // don't get squeezed.
             if (typeof item === "string")
               return (
                 <div
                   key={`${item}-${i}`}
-                  style={{ flex: "1 1 0", minWidth: 0 }}
+                  style={{ minWidth: 0, flex: "0 1 auto" }}
                 >
                   {children(item)}
                 </div>
@@ -183,12 +193,71 @@ const demonstrationCatalogRenderers: CatalogRenderers<DemonstrationCatalogDefini
 
     Column: ({ props, children }) => {
       const items = Array.isArray(props.children) ? props.children : [];
+      const justifyMap: Record<string, string> = {
+        start: "flex-start",
+        center: "center",
+        end: "flex-end",
+        spaceBetween: "space-between",
+        spaceAround: "space-around",
+        spaceEvenly: "space-evenly",
+        stretch: "stretch",
+      };
+      const alignMap: Record<string, string> = {
+        start: "flex-start",
+        center: "center",
+        end: "flex-end",
+        stretch: "stretch",
+      };
       return (
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: `${props.gap ?? 12}px`,
+            gap: `${props.gap ?? 8}px`,
+            justifyContent: justifyMap[props.justify ?? "start"] ?? "flex-start",
+            alignItems: alignMap[props.align ?? "stretch"] ?? props.align ?? "stretch",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          {items.map((item: any, i: number) => {
+            if (typeof item === "string")
+              return (
+                <React.Fragment key={`${item}-${i}`}>
+                  {children(item)}
+                </React.Fragment>
+              );
+            if (item && typeof item === "object" && "id" in item)
+              return (
+                <React.Fragment key={`${item.id}-${i}`}>
+                  {(children as any)(item.id, item.basePath)}
+                </React.Fragment>
+              );
+            return null;
+          })}
+        </div>
+      );
+    },
+
+    List: ({ props, children }) => {
+      const items = Array.isArray(props.children) ? props.children : [];
+      const isHorizontal = props.direction !== "vertical";
+      const alignMap: Record<string, string> = {
+        start: "flex-start",
+        center: "center",
+        end: "flex-end",
+        stretch: "stretch",
+      };
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isHorizontal ? "row" : "column",
+            gap: `${props.gap ?? 16}px`,
+            alignItems: alignMap[props.align ?? "stretch"] ?? props.align ?? "stretch",
+            overflowX: isHorizontal ? "auto" : "hidden",
+            overflowY: isHorizontal ? "hidden" : "auto",
+            padding: "4px 2px 8px",
             width: "100%",
           }}
         >
@@ -207,6 +276,35 @@ const demonstrationCatalogRenderers: CatalogRenderers<DemonstrationCatalogDefini
               );
             return null;
           })}
+        </div>
+      );
+    },
+
+    Card: ({ props, children }) => {
+      const elevated = (props.variant ?? "elevation") !== "flat";
+      return (
+        <div
+          style={{
+            background: c.card,
+            color: c.cardFg,
+            borderRadius: "14px",
+            border: `1px solid ${c.border}`,
+            padding: "12px",
+            boxShadow: elevated ? c.shadow : "none",
+            // Fixed width + flex-shrink: 0 keeps cards uniform; alignSelf:
+            // stretch makes them grow vertically to the tallest sibling so
+            // their inner content can flow with justify:spaceBetween to put
+            // the action button on the bottom.
+            flex: "0 0 220px",
+            alignSelf: "stretch",
+            minHeight: 320,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          {props.child ? children(props.child) : null}
         </div>
       );
     },
@@ -601,5 +699,9 @@ export const demonstrationCatalog = createCatalog(
   demonstrationCatalogRenderers,
   {
     catalogId: "copilotkit://app-dashboard-catalog",
+    // Pull in basic components (Card, Icon, Image, List, Text…) and functions
+    // (formatCurrency, formatString, formatNumber, pluralize) used by the
+    // food-delivery discovery schemas.
+    includeBasicCatalog: true,
   },
 );
