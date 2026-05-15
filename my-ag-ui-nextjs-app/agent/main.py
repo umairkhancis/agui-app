@@ -3,6 +3,8 @@ This is the main entry point for the agent.
 It defines the workflow graph, state, tools, nodes and edges.
 """
 
+import os
+
 from copilotkit import CopilotKitMiddleware, StateStreamingMiddleware, StateItem
 from langchain.agents import create_agent
 
@@ -16,7 +18,15 @@ from src.a2ui_fixed_schema import search_flights
 
 from langchain_openai import ChatOpenAI
 
-model = ChatOpenAI(model="gpt-5.4-mini", model_kwargs={"parallel_tool_calls": False})
+# model = ChatOpenAI(model="gpt-5.4-mini", model_kwargs={"parallel_tool_calls": False})
+
+LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL")
+
+model = ChatOpenAI(
+    model="gpt-5.4-mini",
+    model_kwargs={"parallel_tool_calls": False},
+    **({"base_url": LITELLM_BASE_URL} if LITELLM_BASE_URL else {}),
+)
 
 agent = create_agent(
     model=model,
