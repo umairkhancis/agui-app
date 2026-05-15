@@ -1,16 +1,13 @@
 {
-  "name": "copilotkit-langgraph-template",
+  "name": "agui-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:ui\" \"npm run dev:agent\" --names ui,agent --prefix-colors blue,green --kill-others",
-    "dev:debug": "LOG_LEVEL=debug npm run dev",
-    "dev:ui": "next dev --turbopack",
-    "dev:agent": "./scripts/run-agent.sh || scripts\\run-agent.bat",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "install:agent": "./scripts/setup-agent.sh || scripts\\setup-agent.bat",
-    "postinstall": "npm run install:agent"
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@copilotkit/a2ui-renderer": "1.56.5",
@@ -35,11 +32,11 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "concurrently": "^9.1.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

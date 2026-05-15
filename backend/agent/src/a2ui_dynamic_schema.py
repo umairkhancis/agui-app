@@ -9,6 +9,7 @@ middleware detects in the TOOL_CALL_RESULT and renders automatically.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from langchain.tools import tool, ToolRuntime
@@ -42,7 +43,7 @@ def render_a2ui(
 
 
 @tool()
-def generate_a2ui(runtime: ToolRuntime[Any]) -> str:
+async def generate_a2ui(runtime: ToolRuntime[Any]) -> str:
     """Generate dynamic A2UI components based on the conversation.
 
     A secondary LLM designs the UI schema and data. The result is
@@ -69,14 +70,18 @@ def generate_a2ui(runtime: ToolRuntime[Any]) -> str:
 
     prompt = context_text
 
-    model = ChatOpenAI(model="gpt-4.1")
+    LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL")
+    model = ChatOpenAI(
+        model="gpt-4.1",
+        **({"base_url": LITELLM_BASE_URL} if LITELLM_BASE_URL else {}),
+    )
     model_with_tool = model.bind_tools(
         [render_a2ui],
         tool_choice="render_a2ui",
     )
 
     print(f"[A2UI-DEBUG]   calling secondary LLM at t={time.time() - t0:.1f}s")
-    response = model_with_tool.invoke(
+    response = await model_with_tool.ainvoke(
         [SystemMessage(content=prompt), *messages],
     )
     print(f"[A2UI-RESPONSE] {response}")
