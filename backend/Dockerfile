@@ -14,11 +14,8 @@ COPY agent/main.py ./
 COPY agent/serve.py ./
 
 # Install dependencies declared in pyproject.toml.
-# --no-dev skips dev-only deps; --system installs into the container Python.
-RUN uv sync --no-dev --system
-
-EXPOSE 8123
-
-ENV AGENT_PORT=8123
+# UV_PROJECT_ENVIRONMENT points uv sync at the system Python (no venv needed in Docker).
+ENV UV_PROJECT_ENVIRONMENT=/usr/local
+RUN uv sync --no-dev
 
 CMD ["uv", "run", "python", "serve.py"]
