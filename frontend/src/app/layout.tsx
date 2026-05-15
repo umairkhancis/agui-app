@@ -14,11 +14,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <title>CopilotKit</title>
+        <title>Talabat</title>
         <link
           rel="icon"
-          type="image/svg+xml"
-          href="/copilotkit-logo-mark.svg"
+          type="image/png"
+          href="/talabat-logo.png"
         />
       </head>
       <body className={`antialiased`}>
