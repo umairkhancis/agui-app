@@ -1,39 +1,32 @@
 """
-Thin wrapper to serve the LangGraph agent via AG-UI protocol.
-Used in Docker where langgraph-cli dev (which needs Docker) is unavailable.
-The original main.py and all agent code remain unmodified.
+FastAPI server that exposes the LangGraph agent via the AG-UI protocol.
+
+Run locally:  uv run python serve.py
+Run in Docker: CMD ["uv", "run", "python", "serve.py"]
 """
 
 import os
-import sys
-
-# Add the agent directory to the path so imports work
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "agent"))
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.checkpoint.memory import MemorySaver
 
-# Import the original graph from the unmodified agent code
 from main import graph
 
-# The create_agent() graph may not have a checkpointer (it's normally
-# provided by the LangGraph Platform server). Add one for standalone serving.
-if not hasattr(graph, "checkpointer") or graph.checkpointer is None:
-    # Recompile with a checkpointer
-    graph = graph.copy()
-    graph.checkpointer = MemorySaver()
-
-# Use copilotkit's LangGraphAGUIAgent to serve via AG-UI
 from copilotkit import LangGraphAGUIAgent
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
 
-app = FastAPI()
+# LangGraph Platform normally injects a checkpointer. Add one for standalone serving.
+if not hasattr(graph, "checkpointer") or graph.checkpointer is None:
+    graph = graph.copy()
+    graph.checkpointer = MemorySaver()
+
+app = FastAPI(title="AG-UI Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
