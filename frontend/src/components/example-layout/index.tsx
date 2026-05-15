@@ -1,18 +1,37 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ModeToggle } from "./mode-toggle";
 import { useFrontendTool } from "@copilotkit/react-core";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type BrandConfig } from "@/lib/brand";
 
 interface ExampleLayoutProps {
   chatContent: ReactNode;
   appContent: ReactNode;
+  brand?: BrandConfig;
 }
 
-export function ExampleLayout({ chatContent, appContent }: ExampleLayoutProps) {
+export function ExampleLayout({
+  chatContent,
+  appContent,
+  brand = defaultBrand,
+}: ExampleLayoutProps) {
   const [mode, setMode] = useState<"chat" | "app">("chat");
+
+  // Sync the document title + favicon with the active brand so pages can
+  // override the root layout's defaults (e.g. /demo → CopilotKit branding).
+  useEffect(() => {
+    document.title = brand.title;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.type = brand.favicon.type;
+    link.href = brand.favicon.href;
+  }, [brand]);
 
   useFrontendTool({
     name: "enableAppMode",
