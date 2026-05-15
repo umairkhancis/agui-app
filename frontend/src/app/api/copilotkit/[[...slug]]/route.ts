@@ -7,7 +7,7 @@ import {
 import { handle } from "hono/vercel";
 
 const defaultAgent = new LangGraphHttpAgent({
-  url: process.env.LANGGRAPH_DEPLOYMENT_URL || "http://localhost:8123",
+  url: process.env.AGENT_URL || "http://localhost:8123",
 });
 
 const runtime = new CopilotRuntime({
