@@ -1,6 +1,6 @@
 export type Brand = "talabat" | "copilot";
 
-interface BrandConfig {
+export interface BrandConfig {
   title: string;
   favicon: { href: string; type: string };
   sidebar: {
@@ -33,7 +33,11 @@ const CONFIGS: Record<Brand, BrandConfig> = {
   },
 };
 
-// Switch branding here: "talabat" or "copilot"
-const ACTIVE_BRAND: Brand = "copilot";
+export function getBrandConfig(name: Brand): BrandConfig {
+  return CONFIGS[name];
+}
 
-export const brand = CONFIGS[ACTIVE_BRAND];
+// Default brand used by the root layout's <head> for initial SSR and by any
+// consumer that doesn't pick one explicitly. Pages can pass a different brand
+// to ExampleLayout to override at runtime.
+export const brand: BrandConfig = CONFIGS.talabat;
