@@ -5,6 +5,7 @@ import "@copilotkit/react-core/v2/styles.css";
 
 import { CopilotKit } from "@copilotkit/react-core/v2";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { brand } from "@/lib/brand";
 // A2UI catalog: definitions + renderers in ./declarative-generative-ui/
 import { demonstrationCatalog } from "./declarative-generative-ui/renderers";
 
@@ -14,11 +15,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <title>Talabat</title>
+        <title>{brand.title}</title>
         <link
           rel="icon"
-          type="image/png"
-          href="/talabat-logo.png"
+          type={brand.favicon.type}
+          href={brand.favicon.href}
         />
       </head>
       <body className={`antialiased`}>
