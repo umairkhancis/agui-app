@@ -23,7 +23,7 @@ from langchain_openai import ChatOpenAI
 LITELLM_BASE_URL = os.getenv("LITELLM_BASE_URL")
 
 model = ChatOpenAI(
-    model="gpt-5.4-mini",
+    model="gpt-4.1",
     model_kwargs={"parallel_tool_calls": False},
     **({"base_url": LITELLM_BASE_URL} if LITELLM_BASE_URL else {}),
 )
