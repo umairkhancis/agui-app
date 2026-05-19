@@ -1,0 +1,2067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Food Discovery — AI Mode</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  background: #1A1A2E;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+:root {
+  --orange: #FF5A00;
+  --orange-soft: #FFF3EE;
+  --green: #16A34A;
+  --green-soft: #F0FDF4;
+  --purple: #7C3AED;
+  --purple-soft: #F5F3FF;
+  --blue: #2563EB;
+  --blue-soft: #EFF6FF;
+  --red: #DC2626;
+  --red-soft: #FFF5F5;
+  --gray-50: #FAFAFA;
+  --gray-100: #F4F4F4;
+  --gray-200: #E5E5E5;
+  --gray-400: #A3A3A3;
+  --gray-500: #737373;
+  --gray-700: #404040;
+  --gray-900: #0A0A0A;
+}
+
+/* ── Device shell ── */
+.device {
+  width: 393px;
+  height: 852px;
+  background: #fff;
+  border-radius: 47px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 50px 120px rgba(0,0,0,0.6);
+  flex-shrink: 0;
+}
+
+/* ── Screens ── */
+.screen {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  overflow: hidden;
+  transition: transform 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.38s;
+}
+.screen.hidden  { transform: translateX(100%); opacity: 0; pointer-events: none; }
+.screen.exited  { transform: translateX(-18%) scale(0.97); opacity: 0; pointer-events: none; }
+
+.scroll-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  scrollbar-width: none;
+}
+.scroll-area::-webkit-scrollbar { display: none; }
+
+/* ── Status bar ── */
+.status-bar {
+  padding: 16px 24px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+.status-time { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+
+/* ── AI badge ── */
+.ai-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.ai-badge::before { content: '✦'; font-size: 9px; }
+
+/* ── Back button ── */
+.back-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--gray-700);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.back-btn:active { background: var(--gray-200); }
+
+/* ─────────────────────────────────────────
+   SCREEN 1 · HOME
+───────────────────────────────────────── */
+.home-header { padding: 12px 20px 16px; }
+
+.location-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.location-dot {
+  width: 8px; height: 8px;
+  background: var(--orange);
+  border-radius: 50%;
+}
+.location-text { font-size: 13px; color: var(--gray-500); }
+.location-text strong { color: var(--gray-900); font-weight: 600; }
+.location-chevron { font-size: 10px; color: var(--gray-400); margin-left: 2px; }
+
+.greeting { font-size: 24px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
+
+/* search bar */
+.search-container { padding: 0 20px 20px; }
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: var(--gray-100);
+  border-radius: 16px;
+  padding: 14px 16px;
+  gap: 10px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: border-color 0.2s;
+}
+.search-bar:hover { border-color: var(--gray-200); }
+.search-icon { font-size: 16px; opacity: 0.4; }
+.search-placeholder { flex: 1; font-size: 15px; color: var(--gray-400); }
+
+/* intent chips row */
+.section-label {
+  padding: 0 20px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-400);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.chips-row {
+  padding: 0 20px 4px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chips-row::-webkit-scrollbar { display: none; }
+
+.intent-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 10px 16px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid var(--gray-200);
+  background: white;
+  color: var(--gray-700);
+  transition: all 0.15s;
+  user-select: none;
+}
+.intent-chip:active { transform: scale(0.96); }
+.intent-chip.unsure  { border-color: #C4B5FD; color: var(--purple); background: var(--purple-soft); }
+.intent-chip.healthy { border-color: #86EFAC; color: var(--green); }
+.intent-chip.healthy:hover { background: var(--green-soft); }
+.intent-chip.comfort { border-color: #FCA5A5; color: var(--red); }
+.intent-chip.comfort:hover { background: var(--red-soft); }
+.intent-chip.light   { border-color: #93C5FD; color: var(--blue); }
+.intent-chip.light:hover { background: var(--blue-soft); }
+
+/* featured scroll */
+.featured-scroll {
+  padding: 0 20px;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.featured-scroll::-webkit-scrollbar { display: none; }
+
+.featured-card {
+  min-width: 152px;
+  height: 116px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.featured-card:active { transform: scale(0.97); }
+.featured-card .bg {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+.featured-card .label {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 8px 12px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.55));
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* nav bar */
+.nav-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 82px;
+  background: white;
+  border-top: 1px solid var(--gray-100);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  padding-top: 12px;
+}
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--gray-400);
+  font-weight: 500;
+}
+.nav-item.active { color: var(--orange); }
+.nav-icon { font-size: 22px; }
+
+/* ─────────────────────────────────────────
+   SCREEN 2 · AI CONVERSATION
+───────────────────────────────────────── */
+.ai-header {
+  padding: 16px 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ai-search-bar {
+  flex: 1;
+  background: var(--gray-100);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--gray-500);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* typing display */
+.typing-area { padding: 28px 20px 24px; }
+.typing-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+.typing-text {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gray-900);
+  line-height: 1.25;
+  min-height: 66px;
+}
+.cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.9em;
+  background: var(--orange);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 0.85s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* AI understanding card */
+.ai-card {
+  margin: 0 20px 20px;
+  padding: 18px;
+  background: linear-gradient(135deg, #F5F3FF 0%, #EFF6FF 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(124,58,237,0.12);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.4s cubic-bezier(0.4,0,0.2,1), transform 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+.ai-card.visible { opacity: 1; transform: translateY(0); }
+
+.ai-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ai-avatar {
+  width: 26px; height: 26px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: white;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ai-name { font-size: 12px; font-weight: 700; color: var(--purple); flex: 1; }
+
+.loading-dots { display: flex; gap: 4px; align-items: center; }
+.dot {
+  width: 5px; height: 5px;
+  background: var(--purple);
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotPulse { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+
+.ai-interpretation {
+  font-size: 15px;
+  color: var(--gray-700);
+  line-height: 1.55;
+  margin-bottom: 14px;
+}
+.ai-interpretation strong { color: var(--gray-900); }
+.ai-question { font-size: 18px; font-weight: 800; color: var(--gray-900); line-height: 1.3; }
+
+/* answers */
+.answers-section {
+  padding: 0 20px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.4s cubic-bezier(0.4,0,0.2,1) 0.1s, transform 0.4s cubic-bezier(0.4,0,0.2,1) 0.1s;
+}
+.answers-section.visible { opacity: 1; transform: translateY(0); }
+
+.answers-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 12px;
+}
+.answers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.answer-chip {
+  padding: 14px 14px;
+  border-radius: 16px;
+  background: var(--gray-50);
+  border: 1.5px solid var(--gray-200);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s, transform 0.25s, border-color 0.15s, background 0.15s;
+}
+.answer-chip.visible { opacity: 1; transform: translateY(0); }
+.answer-chip:hover { border-color: var(--orange); background: var(--orange-soft); }
+.answer-chip:active { transform: scale(0.97); }
+.answer-emoji { font-size: 22px; margin-bottom: 6px; }
+.answer-text { font-size: 14px; font-weight: 700; color: var(--gray-800); line-height: 1.3; }
+.answer-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+/* ── Intent-themed AI conversation ── */
+#screen-ai[data-intent="healthy"] .ai-card { background: linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%); border-color: rgba(22,163,74,0.15); }
+#screen-ai[data-intent="healthy"] .ai-avatar { background: linear-gradient(135deg, #16A34A, #059669); }
+#screen-ai[data-intent="healthy"] .ai-name { color: #16A34A; }
+#screen-ai[data-intent="healthy"] .dot { background: #16A34A; }
+#screen-ai[data-intent="healthy"] .cursor { background: #16A34A; }
+#screen-ai[data-intent="healthy"] .answer-chip:hover { border-color: #16A34A; background: #F0FDF4; }
+
+#screen-ai[data-intent="comfort"] .ai-card { background: linear-gradient(135deg, #FFF5F5 0%, #FFF7ED 100%); border-color: rgba(234,88,12,0.15); }
+#screen-ai[data-intent="comfort"] .ai-avatar { background: linear-gradient(135deg, #F97316, #DC2626); }
+#screen-ai[data-intent="comfort"] .ai-name { color: #DC2626; }
+#screen-ai[data-intent="comfort"] .dot { background: #DC2626; }
+#screen-ai[data-intent="comfort"] .cursor { background: #EA580C; }
+#screen-ai[data-intent="comfort"] .answer-chip:hover { border-color: #DC2626; background: #FFF5F5; }
+
+#screen-ai[data-intent="light"] .ai-card { background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%); border-color: rgba(37,99,235,0.15); }
+#screen-ai[data-intent="light"] .ai-avatar { background: linear-gradient(135deg, #2563EB, #0EA5E9); }
+#screen-ai[data-intent="light"] .ai-name { color: #2563EB; }
+#screen-ai[data-intent="light"] .dot { background: #2563EB; }
+#screen-ai[data-intent="light"] .cursor { background: #2563EB; }
+#screen-ai[data-intent="light"] .answer-chip:hover { border-color: #2563EB; background: #EFF6FF; }
+
+/* unsure keeps the default purple — no override needed */
+
+#screen-ai[data-intent="quick"] .ai-card { background: linear-gradient(135deg, #FFF7ED 0%, #FFFBEB 100%); border-color: rgba(234,88,12,0.15); }
+#screen-ai[data-intent="quick"] .ai-avatar { background: linear-gradient(135deg, #F97316, #EAB308); }
+#screen-ai[data-intent="quick"] .ai-name { color: #EA580C; }
+#screen-ai[data-intent="quick"] .dot { background: #EA580C; }
+#screen-ai[data-intent="quick"] .cursor { background: #EA580C; }
+#screen-ai[data-intent="quick"] .answer-chip:hover { border-color: #EA580C; background: #FFF7ED; }
+
+#screen-ai[data-intent="usual"] .ai-card { background: linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%); border-color: rgba(217,119,6,0.15); }
+#screen-ai[data-intent="usual"] .ai-avatar { background: linear-gradient(135deg, #D97706, #F59E0B); }
+#screen-ai[data-intent="usual"] .ai-name { color: #D97706; }
+#screen-ai[data-intent="usual"] .dot { background: #D97706; }
+#screen-ai[data-intent="usual"] .cursor { background: #D97706; }
+#screen-ai[data-intent="usual"] .answer-chip:hover { border-color: #D97706; background: #FFF7ED; }
+
+#screen-ai[data-intent="explore"] .ai-card { background: linear-gradient(135deg, #F0FDFA 0%, #ECFEFF 100%); border-color: rgba(13,148,136,0.15); }
+#screen-ai[data-intent="explore"] .ai-avatar { background: linear-gradient(135deg, #0D9488, #06B6D4); }
+#screen-ai[data-intent="explore"] .ai-name { color: #0D9488; }
+#screen-ai[data-intent="explore"] .dot { background: #0D9488; }
+#screen-ai[data-intent="explore"] .cursor { background: #0D9488; }
+#screen-ai[data-intent="explore"] .answer-chip:hover { border-color: #0D9488; background: #F0FDFA; }
+
+/* ─────────────────────────────────────────
+   SCREEN 3 · RESULTS
+───────────────────────────────────────── */
+#screen-results { background: var(--gray-50); }
+
+.results-header {
+  background: white;
+  padding: 16px 20px 18px;
+  border-bottom: 1px solid var(--gray-100);
+}
+.results-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.results-title { flex: 1; font-size: 17px; font-weight: 800; color: var(--gray-900); }
+
+/* context banner */
+.context-banner {
+  background: var(--gray-50);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--gray-200);
+}
+.context-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.context-text { flex: 1; min-width: 0; }
+.context-intent { font-size: 13px; font-weight: 700; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.context-why { font-size: 11px; color: var(--gray-500); margin-top: 3px; line-height: 1.45; }
+.context-edit { font-size: 12px; color: var(--orange); font-weight: 700; flex-shrink: 0; padding-top: 1px; cursor: pointer; }
+
+/* result list */
+.results-list {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 120px;
+}
+
+/* result card */
+.result-card {
+  background: white;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+.result-card.visible { opacity: 1; transform: translateY(0); }
+
+.card-image {
+  width: 100%;
+  height: 156px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 70px;
+  position: relative;
+}
+.card-badge {
+  position: absolute;
+  top: 12px; left: 12px;
+  padding: 5px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.card-body { padding: 14px 16px 16px; }
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+.card-name { font-size: 16px; font-weight: 800; color: var(--gray-900); line-height: 1.2; flex: 1; padding-right: 8px; }
+.card-rating { font-size: 13px; font-weight: 600; color: var(--gray-700); white-space: nowrap; }
+.card-restaurant { font-size: 12px; color: var(--gray-400); margin-bottom: 14px; }
+
+/* ── Healthy attributes ── */
+.macros-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.macro-pill {
+  flex: 1;
+  text-align: center;
+  background: var(--green-soft);
+  border-radius: 10px;
+  padding: 8px 4px;
+}
+.macro-value { font-size: 14px; font-weight: 800; color: var(--green); }
+.macro-label { font-size: 9px; color: #4ADE80; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 1px; }
+
+.health-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.health-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+/* ── Comfort attributes ── */
+.comfort-descriptors { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.comfort-word {
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-weight: 600;
+}
+.social-proof {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+  font-style: italic;
+  line-height: 1.45;
+}
+.social-proof strong { color: var(--gray-700); font-style: normal; }
+.comfort-feel {
+  background: var(--red-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #991B1B;
+  margin-bottom: 12px;
+}
+
+/* ── Light attributes ── */
+.calorie-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.calorie-big { font-size: 30px; font-weight: 900; color: var(--blue); }
+.calorie-unit { font-size: 14px; color: var(--gray-400); }
+.calorie-feel { font-size: 12px; color: var(--gray-400); }
+
+.light-indicators { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.light-indicator {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+/* ── Unsure attributes ── */
+.unsure-why {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+.unsure-mood {
+  background: var(--purple-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #5B21B6;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+/* ── Shuffle button ── */
+.shuffle-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  border: 1.5px solid var(--gray-200);
+}
+.shuffle-btn:active { background: var(--gray-200); }
+.shuffle-btn.spinning { animation: spinOnce 0.4s cubic-bezier(0.4,0,0.2,1); }
+@keyframes spinOnce { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ── Sticky results CTA bar ── */
+.results-sticky-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  border-top: 1px solid var(--gray-100);
+  padding: 12px 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 20;
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.07);
+}
+.view-all-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 20px;
+  border-radius: 100px;
+  border: 1.5px solid var(--orange);
+  color: var(--orange);
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--orange-soft);
+  transition: all 0.15s;
+  justify-content: center;
+  cursor: pointer;
+}
+.view-all-btn:active { opacity: 0.75; }
+.view-all-count { font-size: 12px; color: var(--gray-400); font-weight: 500; }
+
+/* ── Results filter chips ── */
+.results-filter-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.results-filter-row::-webkit-scrollbar { display: none; }
+.result-filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid var(--gray-200);
+  background: white;
+  color: var(--gray-700);
+  transition: all 0.15s;
+  user-select: none;
+  flex-shrink: 0;
+}
+.result-filter-chip:active { transform: scale(0.96); }
+.result-filter-chip.active {
+  border-color: var(--orange);
+  background: var(--orange-soft);
+  color: var(--orange);
+}
+
+/* ── Refine overlay ── */
+.refine-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  border-radius: 47px;
+}
+.refine-overlay.open { opacity: 1; pointer-events: all; }
+
+/* ── Refine sheet ── */
+.refine-sheet {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  border-radius: 28px 28px 0 0;
+  padding: 12px 20px 36px;
+  z-index: 100;
+  transform: translateY(100%);
+  transition: transform 0.36s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.15);
+}
+.refine-sheet.open { transform: translateY(0); }
+
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: var(--gray-200);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+.sheet-title { font-size: 17px; font-weight: 800; color: var(--gray-900); margin-bottom: 18px; }
+
+.filter-section { margin-bottom: 16px; }
+.filter-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 8px;
+}
+.filter-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid var(--gray-200);
+  background: white;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.filter-chip:active { transform: scale(0.96); }
+.filter-chip.active { border-color: var(--orange); background: var(--orange-soft); color: var(--orange); }
+
+.apply-btn {
+  width: 100%;
+  background: var(--orange);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: opacity 0.15s;
+}
+.apply-btn:active { opacity: 0.85; }
+
+/* ── Screen 4: View all vendors ── */
+#screen-all { background: var(--gray-50); }
+
+.vendors-list {
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 40px;
+}
+
+.vendor-item {
+  background: white;
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s, transform 0.25s, box-shadow 0.15s;
+}
+.vendor-item.visible { opacity: 1; transform: translateY(0); }
+.vendor-item:active { box-shadow: 0 0 0 2px var(--orange); }
+
+.vendor-emoji {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+}
+.vendor-info { flex: 1; min-width: 0; }
+.vendor-name { font-size: 15px; font-weight: 700; color: var(--gray-900); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vendor-meta { font-size: 12px; color: var(--gray-400); margin-bottom: 6px; }
+.vendor-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vendor-rating { font-size: 12px; font-weight: 600; color: var(--gray-700); }
+.vendor-time { font-size: 12px; color: var(--gray-500); }
+.vendor-fee { font-size: 12px; color: var(--gray-500); }
+.vendor-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 100px; }
+.vendor-chevron { font-size: 16px; color: var(--gray-300); flex-shrink: 0; }
+
+/* ── Card footer (shared) ── */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--gray-100);
+}
+.delivery-info { display: flex; align-items: center; gap: 12px; }
+.delivery-time { font-size: 13px; color: var(--gray-500); }
+.delivery-price { font-size: 13px; color: var(--gray-500); }
+.add-btn {
+  width: 36px; height: 36px;
+  background: var(--orange);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 22px;
+  font-weight: 300;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+.add-btn:active { transform: scale(0.9); }
+
+/* ── Smart search bar ── */
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: var(--gray-900);
+  font-family: inherit;
+  min-width: 0;
+}
+.search-input::placeholder { color: var(--gray-400); }
+
+.search-bar { transition: border-color 0.25s, box-shadow 0.25s; }
+.search-bar.ai-mode {
+  border-color: var(--orange) !important;
+  animation: borderPulse 1.6s ease-in-out infinite;
+}
+@keyframes borderPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,90,0,0); }
+  50%      { box-shadow: 0 0 0 4px rgba(255,90,0,0.14); }
+}
+
+.home-ai-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+.home-ai-badge.visible { opacity: 1; transform: scale(1); }
+
+/* ─────────────────────────────────────────
+   SEARCH-PAGE LAYOUT
+───────────────────────────────────────── */
+.search-top-row {
+  padding: 8px 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.search-pill {
+  flex: 1;
+  border-radius: 100px !important;
+  padding: 11px 16px !important;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--gray-200);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-item {
+  padding: 11px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-500);
+  white-space: nowrap;
+  cursor: pointer;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.tab-item.active { color: var(--gray-900); font-weight: 700; border-bottom-color: var(--gray-900); }
+.tab-item.tab-ai { color: var(--purple); font-weight: 600; }
+.tab-item.tab-ai.active { color: var(--purple); border-bottom-color: var(--purple); }
+
+/* Tab content */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* All tab — cuisine circles */
+.all-section-header {
+  padding: 20px 20px 12px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--gray-900);
+}
+.cuisine-scroll {
+  display: flex;
+  gap: 16px;
+  padding: 0 20px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cuisine-scroll::-webkit-scrollbar { display: none; }
+.cuisine-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cuisine-circle {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  transition: transform 0.15s;
+}
+.cuisine-item:active .cuisine-circle { transform: scale(0.94); }
+.cuisine-label { font-size: 12px; font-weight: 500; color: var(--gray-700); text-align: center; }
+
+/* Search pill chips (recent / popular) */
+.search-chips {
+  padding: 4px 20px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.search-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--gray-200);
+  font-size: 13px;
+  color: var(--gray-700);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.search-chip:active { background: var(--gray-100); }
+.chip-icon { font-size: 11px; color: var(--gray-400); }
+.chip-trending { color: var(--gray-700); }
+
+/* Placeholder stub tabs */
+.tab-placeholder {
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--gray-400);
+}
+.placeholder-icon { font-size: 40px; }
+.placeholder-text { font-size: 16px; font-weight: 600; }
+
+/* ── Drip card ── */
+.drip-rating { margin-bottom: 10px; }
+.drip-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--gray-400);
+  margin-bottom: 4px;
+}
+.drip-score { display: flex; align-items: baseline; gap: 6px; }
+.drip-number { font-size: 30px; font-weight: 900; color: #EA580C; line-height: 1; }
+.drip-max { font-size: 14px; color: var(--gray-400); }
+.drip-icons { font-size: 13px; letter-spacing: 1px; margin-left: 2px; }
+
+.drip-attrs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.drip-row { display: flex; align-items: baseline; gap: 8px; }
+.drip-key {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 48px;
+  flex-shrink: 0;
+}
+.drip-val { font-size: 13px; color: var(--gray-700); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="device">
+
+  <!-- ══════════════════════════════
+       SCREEN 1 · SEARCH (with AI tab)
+  ══════════════════════════════ -->
+  <div class="screen" id="screen-home">
+    <div class="scroll-area">
+      <div class="status-bar">
+        <span class="status-time">13:30</span>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#1A1A1A"/><rect x="4.5" y="5.5" width="3" height="6.5" rx="0.5" fill="#1A1A1A"/><rect x="9" y="3" width="3" height="9" rx="0.5" fill="#1A1A1A"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#1A1A1A"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M1 4.5C3.5 2.2 6.1 1 8 1s4.5 1.2 7 3.5" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M3 7C4.7 5.3 6.3 4.5 8 4.5s3.3.8 5 2.5" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="8" cy="10.5" r="1.2" fill="#1A1A1A"/></svg>
+        </div>
+      </div>
+
+      <!-- Search row -->
+      <div class="search-top-row">
+        <div class="back-btn" style="flex-shrink:0;">←</div>
+        <div class="search-bar search-pill" id="home-search-bar">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            class="search-input"
+            id="home-search-input"
+            placeholder="Search food, groceries and more"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+          />
+          <div class="home-ai-badge" id="home-ai-badge">✦ AI</div>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar">
+        <div class="tab-item tab-ai active" data-tab="ai" onclick="switchTab('ai')">✦ AI</div>
+        <div class="tab-item" data-tab="all" onclick="switchTab('all')">All</div>
+        <div class="tab-item" data-tab="food" onclick="switchTab('food')">Food</div>
+        <div class="tab-item" data-tab="groceries" onclick="switchTab('groceries')">Groceries</div>
+        <div class="tab-item" data-tab="pharmacies" onclick="switchTab('pharmacies')">Pharmacies</div>
+        <div class="tab-item" data-tab="dineout" onclick="switchTab('dineout')">DineOut</div>
+      </div>
+
+      <!-- ── AI Tab ── -->
+      <div class="tab-content active" id="tab-ai">
+        <div style="padding: 24px 20px 16px;">
+          <div class="greeting">What are you<br>eating today? 🤔</div>
+        </div>
+
+        <div class="section-label">What are you in the mood for?</div>
+        <div class="chips-row">
+          <div class="intent-chip unsure"  onclick="startSearch('unsure')">✦ Not sure</div>
+          <div class="intent-chip healthy" onclick="startSearch('healthy')">🥗 Healthy</div>
+          <div class="intent-chip comfort" onclick="startSearch('comfort')">🍜 Comfort food</div>
+          <div class="intent-chip light"   onclick="startSearch('light')">🌿 Light</div>
+          <div class="intent-chip"         onclick="startSearch('quick')">⚡ Quick</div>
+          <div class="intent-chip"         onclick="startSearch('usual')">🔁 My usual</div>
+        </div>
+
+        <div style="height:24px;"></div>
+        <div class="section-label">Explore</div>
+        <div class="featured-scroll">
+          <div class="featured-card" onclick="startSearch('healthy')">
+            <div class="bg" style="background:linear-gradient(135deg,#D1FAE5,#A7F3D0);">🥗</div>
+            <div class="label">Eating healthy</div>
+          </div>
+          <div class="featured-card" onclick="startSearch('comfort')">
+            <div class="bg" style="background:linear-gradient(135deg,#FEE2E2,#FECACA);">🍕</div>
+            <div class="label">Comfort food</div>
+          </div>
+          <div class="featured-card" onclick="startSearch('light')">
+            <div class="bg" style="background:linear-gradient(135deg,#DBEAFE,#BFDBFE);">🥑</div>
+            <div class="label">Light & fresh</div>
+          </div>
+          <div class="featured-card" onclick="startSearch('unsure')">
+            <div class="bg" style="background:linear-gradient(135deg,#EDE9FE,#DDD6FE);">✨</div>
+            <div class="label">Surprise me</div>
+          </div>
+        </div>
+        <div style="height:40px;"></div>
+      </div>
+
+      <!-- ── All Tab ── -->
+      <div class="tab-content" id="tab-all">
+        <div class="all-section-header">What are you craving today?</div>
+        <div class="cuisine-scroll">
+          <div class="cuisine-item" onclick="handleSearch('lebanese')">
+            <div class="cuisine-circle" style="background:linear-gradient(135deg,#FEE2E2,#FECACA);">🥙</div>
+            <div class="cuisine-label">Lebanese</div>
+          </div>
+          <div class="cuisine-item" onclick="startSearch('healthy')">
+            <div class="cuisine-circle" style="background:linear-gradient(135deg,#D1FAE5,#A7F3D0);">🥗</div>
+            <div class="cuisine-label">Healthy</div>
+          </div>
+          <div class="cuisine-item" onclick="handleSearch('pasta')">
+            <div class="cuisine-circle" style="background:linear-gradient(135deg,#FFF7ED,#FED7AA);">🍝</div>
+            <div class="cuisine-label">Italian</div>
+          </div>
+          <div class="cuisine-item" onclick="handleSearch('arabic')">
+            <div class="cuisine-circle" style="background:linear-gradient(135deg,#FEF9C3,#FDE68A);">🫕</div>
+            <div class="cuisine-label">Arabic</div>
+          </div>
+          <div class="cuisine-item" onclick="handleSearch('pizza')">
+            <div class="cuisine-circle" style="background:linear-gradient(135deg,#FFF7ED,#FED7AA);">🍕</div>
+            <div class="cuisine-label">Pizza</div>
+          </div>
+          <div class="cuisine-item" onclick="handleSearch('burger')">
+            <div class="cuisine-circle" style="background:linear-gradient(135deg,#F3F4F6,#E5E7EB);">🍔</div>
+            <div class="cuisine-label">Burger</div>
+          </div>
+        </div>
+
+        <div class="all-section-header">Recent searches</div>
+        <div class="search-chips">
+          <div class="search-chip" onclick="handleSearch('leto')"><span class="chip-icon">↺</span> leto</div>
+          <div class="search-chip" onclick="handleSearch('mama fouz shawarma')"><span class="chip-icon">↺</span> mama fouz shawarma</div>
+          <div class="search-chip" onclick="handleSearch('800 pizza')"><span class="chip-icon">↺</span> 800 pizza</div>
+          <div class="search-chip" onclick="handleSearch('giant pizzq')"><span class="chip-icon">↺</span> giant pizzq</div>
+          <div class="search-chip" onclick="handleSearch('russos new york pizzeria')"><span class="chip-icon">↺</span> russos new york pizzeria</div>
+        </div>
+
+        <div class="all-section-header">Popular searches</div>
+        <div class="search-chips">
+          <div class="search-chip" onclick="handleSearch('mcdonalds')"><span class="chip-icon chip-trending">↗</span> mcdonalds</div>
+          <div class="search-chip" onclick="handleSearch('pizza')"><span class="chip-icon chip-trending">↗</span> pizza</div>
+          <div class="search-chip" onclick="handleSearch('kfc')"><span class="chip-icon chip-trending">↗</span> kfc</div>
+          <div class="search-chip" onclick="handleSearch('burger')"><span class="chip-icon chip-trending">↗</span> burger</div>
+          <div class="search-chip" onclick="handleSearch('burger king')"><span class="chip-icon chip-trending">↗</span> burger king</div>
+          <div class="search-chip" onclick="handleSearch('pizza hut')"><span class="chip-icon chip-trending">↗</span> pizza hut</div>
+        </div>
+        <div style="height:40px;"></div>
+      </div>
+
+      <!-- ── Stub tabs ── -->
+      <div class="tab-content" id="tab-food">
+        <div class="tab-placeholder"><div class="placeholder-icon">🍽</div><div class="placeholder-text">Food</div></div>
+      </div>
+      <div class="tab-content" id="tab-groceries">
+        <div class="tab-placeholder"><div class="placeholder-icon">🛒</div><div class="placeholder-text">Groceries</div></div>
+      </div>
+      <div class="tab-content" id="tab-pharmacies">
+        <div class="tab-placeholder"><div class="placeholder-icon">💊</div><div class="placeholder-text">Pharmacies</div></div>
+      </div>
+      <div class="tab-content" id="tab-dineout">
+        <div class="tab-placeholder"><div class="placeholder-icon">🍽</div><div class="placeholder-text">DineOut</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       SCREEN 2 · AI CONVERSATION
+  ══════════════════════════════ -->
+  <div class="screen hidden" id="screen-ai">
+    <div class="scroll-area">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#1A1A1A"/><rect x="4.5" y="5.5" width="3" height="6.5" rx="0.5" fill="#1A1A1A"/><rect x="9" y="3" width="3" height="9" rx="0.5" fill="#1A1A1A"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#1A1A1A"/></svg>
+      </div>
+
+      <div class="ai-header">
+        <div class="back-btn" onclick="goBack()">←</div>
+        <div class="ai-search-bar">
+          <div class="ai-badge" style="font-size:10px;padding:4px 8px;">AI</div>
+          <span id="ai-search-text" style="font-size:13px;">Understanding your request…</span>
+        </div>
+      </div>
+
+      <div class="typing-area">
+        <div class="typing-label">You're looking for</div>
+        <div class="typing-text" id="typing-text"><span class="cursor"></span></div>
+      </div>
+
+      <div class="ai-card" id="ai-card">
+        <div class="ai-card-header">
+          <div class="ai-avatar">✦</div>
+          <div class="ai-name">AI · Reading your intent</div>
+          <div class="loading-dots" id="loading-dots">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          </div>
+        </div>
+        <div class="ai-interpretation" id="ai-interpretation"></div>
+        <div class="ai-question" id="ai-question"></div>
+      </div>
+
+      <div class="answers-section" id="answers-section">
+        <div class="answers-label">Pick what feels right</div>
+        <div class="answers-grid" id="answers-grid"></div>
+      </div>
+
+      <div style="height:48px;"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       SCREEN 3 · RESULTS
+  ══════════════════════════════ -->
+  <div class="screen hidden" id="screen-results">
+    <div class="scroll-area">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#1A1A1A"/><rect x="4.5" y="5.5" width="3" height="6.5" rx="0.5" fill="#1A1A1A"/><rect x="9" y="3" width="3" height="9" rx="0.5" fill="#1A1A1A"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#1A1A1A"/></svg>
+      </div>
+
+      <div class="results-header">
+        <div class="results-nav">
+          <div class="back-btn" onclick="goToAI()">←</div>
+          <div class="results-title" id="results-title">Results</div>
+          <div style="width:36px;"></div>
+        </div>
+        <div class="context-banner">
+          <div class="context-icon" id="context-icon">🥗</div>
+          <div class="context-text">
+            <div class="context-intent" id="context-intent-text"></div>
+            <div class="context-why" id="context-why-text"></div>
+          </div>
+          <div class="context-edit" onclick="openRefineSheet()">Refine</div>
+        </div>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="results-filter-row">
+        <div class="result-filter-chip" onclick="toggleResultFilter(this)">🏷️ Deals</div>
+        <div class="result-filter-chip" onclick="toggleResultFilter(this)">⚡ Quick delivery</div>
+        <div class="result-filter-chip" onclick="toggleResultFilter(this)">📈 Trending</div>
+        <div class="result-filter-chip" onclick="toggleResultFilter(this)">⭐ Top rated</div>
+        <div class="result-filter-chip" onclick="toggleResultFilter(this)">🆓 Free delivery</div>
+        <div class="result-filter-chip" onclick="toggleResultFilter(this)">🌿 Vegan</div>
+        <div class="result-filter-chip" onclick="toggleResultFilter(this)">🔥 New</div>
+      </div>
+
+      <div class="results-list" id="results-list"></div>
+
+    </div>
+
+    <!-- Sticky bottom CTA bar -->
+    <div class="results-sticky-bar">
+      <div class="shuffle-btn" id="shuffle-btn" onclick="shuffleResults()" title="Shuffle">🔀</div>
+      <div class="view-all-btn" onclick="showAllVendors()">
+        View all restaurants <span class="view-all-count" id="view-all-count">(12+)</span> →
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════
+       SCREEN 4 · VIEW ALL VENDORS
+  ══════════════════════════════ -->
+  <div class="screen hidden" id="screen-all">
+    <div class="scroll-area">
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#1A1A1A"/><rect x="4.5" y="5.5" width="3" height="6.5" rx="0.5" fill="#1A1A1A"/><rect x="9" y="3" width="3" height="9" rx="0.5" fill="#1A1A1A"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#1A1A1A"/></svg>
+      </div>
+      <div class="results-header" style="background:white;">
+        <div class="results-nav">
+          <div class="back-btn" onclick="showScreen('screen-results','backward')">←</div>
+          <div class="results-title" id="all-title">All Restaurants</div>
+          <div style="width:36px;"></div>
+        </div>
+      </div>
+      <div class="vendors-list" id="vendors-list"></div>
+    </div>
+  </div>
+
+  <!-- Refine overlay + sheet (lives outside screens so it overlays everything) -->
+  <div class="refine-overlay" id="refine-overlay" onclick="closeRefineSheet()"></div>
+  <div class="refine-sheet" id="refine-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Refine results</div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Delivery</div>
+      <div class="filter-chips">
+        <div class="filter-chip" onclick="toggleFilter(this)">⚡ Quick (<20 min)</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">🆓 Free delivery</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">📦 Scheduled</div>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Offers</div>
+      <div class="filter-chips">
+        <div class="filter-chip" onclick="toggleFilter(this)">🏷 Deals & offers</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">🎁 Bundle deals</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">🥇 First order offer</div>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Sort by</div>
+      <div class="filter-chips">
+        <div class="filter-chip active" onclick="toggleFilter(this)">⭐ Top rated</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">📈 Trending now</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">🆕 New restaurants</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">💰 Price: low first</div>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-section-label">Dietary</div>
+      <div class="filter-chips">
+        <div class="filter-chip" onclick="toggleFilter(this)">🌿 Vegan</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">🥩 High protein</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">🌶 Spicy options</div>
+        <div class="filter-chip" onclick="toggleFilter(this)">🥜 Nut free</div>
+      </div>
+    </div>
+
+    <button class="apply-btn" onclick="applyFilters()">Apply filters</button>
+  </div>
+
+</div><!-- .device -->
+
+<script>
+// ─── DATA ───────────────────────────────────────────────
+
+const RESULTS = {
+  healthy: [
+    {
+      type:'healthy', emoji:'🥗',
+      bg:'linear-gradient(135deg,#D1FAE5,#6EE7B7)',
+      badge:{text:'Macro match',color:'#16A34A',bg:'#DCFCE7'},
+      name:'Grilled Chicken Power Bowl', restaurant:'Clean Kitchen Co.',
+      rating:'4.8', calories:420, protein:'38g', carbs:'32g', fat:'12g',
+      tags:['High Protein','Low Carb','Gluten Free'],
+      time:'18 min', price:'AED 52'
+    },
+    {
+      type:'healthy', emoji:'🐟',
+      bg:'linear-gradient(135deg,#FEF3C7,#FDE68A)',
+      badge:{text:'Top rated',color:'#D97706',bg:'#FEF9C3'},
+      name:'Salmon & Quinoa Bowl', restaurant:'The Wellness Table',
+      rating:'4.9', calories:510, protein:'42g', carbs:'38g', fat:'18g',
+      tags:['Omega-3','High Fiber','Dairy Free'],
+      time:'22 min', price:'AED 68'
+    },
+    {
+      type:'healthy', emoji:'🥙',
+      bg:'linear-gradient(135deg,#DBEAFE,#BFDBFE)',
+      badge:{text:'Fastest',color:'#2563EB',bg:'#DBEAFE'},
+      name:'Mediterranean Wrap', restaurant:'Fresh & Go',
+      rating:'4.6', calories:380, protein:'28g', carbs:'42g', fat:'10g',
+      tags:['Balanced','Whole Grain','Low Fat'],
+      time:'14 min', price:'AED 38'
+    }
+  ],
+  comfort: [
+    {
+      type:'comfort', emoji:'🍛',
+      bg:'linear-gradient(135deg,#FEE2E2,#FECACA)',
+      badge:{text:'❤️ Most loved',color:'#DC2626',bg:'#FEF2F2'},
+      name:'Creamy Butter Chicken', restaurant:'Spice Garden',
+      rating:'4.9',
+      descriptors:['Rich','Creamy','Warming'],
+      socialProof:'"Ordered this on my worst day and it helped." — 847 people agree',
+      feel:'🧡  9 out of 10 say this lifted their mood',
+      time:'25 min', price:'AED 55'
+    },
+    {
+      type:'comfort', emoji:'🍕',
+      bg:'linear-gradient(135deg,#FFF7ED,#FED7AA)',
+      badge:{text:'📈 Trending',color:'#EA580C',bg:'#FFF7ED'},
+      name:'Four Cheese Pizza', restaurant:'Mama Rosa\'s',
+      rating:'4.8',
+      descriptors:['Cheesy','Gooey','Indulgent'],
+      socialProof:'"The cheese pull is unreal." — 1.2K orders this week',
+      feel:'🔥  Currently trending for a reason',
+      time:'30 min', price:'AED 75'
+    },
+    {
+      type:'comfort', emoji:'🍔',
+      bg:'linear-gradient(135deg,#F3F4F6,#E5E7EB)',
+      badge:{text:'⚡ Quick comfort',color:'#374151',bg:'#F3F4F6'},
+      name:'Smash Burger & Fries', restaurant:'Patty Lab',
+      rating:'4.7',
+      descriptors:['Juicy','Crispy','Classic'],
+      socialProof:'"Exactly what comfort food should be." — 2.1K orders',
+      feel:'⚡  Ready in 20 min — comfort, fast',
+      time:'20 min', price:'AED 62'
+    }
+  ],
+  light: [
+    {
+      type:'light', emoji:'🥗',
+      bg:'linear-gradient(135deg,#ECFDF5,#A7F3D0)',
+      badge:{text:'310 kcal',color:'#2563EB',bg:'#DBEAFE'},
+      name:'Niçoise Salad', restaurant:'Café Légère',
+      rating:'4.8', calories:310,
+      indicators:['✓ Low calorie','✓ High fiber','✓ Fresh today'],
+      feel:'Light but satisfying',
+      time:'15 min', price:'AED 42'
+    },
+    {
+      type:'light', emoji:'🍵',
+      bg:'linear-gradient(135deg,#FEF9C3,#FEF08A)',
+      badge:{text:'220 kcal',color:'#2563EB',bg:'#DBEAFE'},
+      name:'Miso Soup & Edamame Set', restaurant:'Umami House',
+      rating:'4.7', calories:220,
+      indicators:['✓ Very light','✓ Probiotic','✓ Plant-based'],
+      feel:'Gentle on the stomach',
+      time:'12 min', price:'AED 35'
+    },
+    {
+      type:'light', emoji:'🥑',
+      bg:'linear-gradient(135deg,#EFF6FF,#BFDBFE)',
+      badge:{text:'380 kcal',color:'#2563EB',bg:'#DBEAFE'},
+      name:'Avocado Toast & Egg', restaurant:'Morning Table',
+      rating:'4.9', calories:380,
+      indicators:['✓ Whole grain','✓ Good fats','✓ No added sugar'],
+      feel:'Energizing, not heavy',
+      time:'18 min', price:'AED 45'
+    }
+  ],
+  unsure: [
+    {
+      type:'unsure', emoji:'🍱',
+      bg:'linear-gradient(135deg,#EDE9FE,#DDD6FE)',
+      badge:{text:'✦ AI pick',color:'#7C3AED',bg:'#F5F3FF'},
+      name:'Build Your Own Bowl', restaurant:'The Kitchen Lab',
+      rating:'4.8',
+      descriptors:['Flexible','Customizable','Satisfying'],
+      why:'When you\'re not sure, customisable always wins — start anywhere and adjust.',
+      moodProof:'✨  94% of undecided users rated this 5 stars',
+      time:'20 min', price:'AED 55'
+    },
+    {
+      type:'comfort', emoji:'🍜',
+      bg:'linear-gradient(135deg,#FEE2E2,#FECACA)',
+      badge:{text:'❤️ Most loved',color:'#DC2626',bg:'#FEF2F2'},
+      name:'Creamy Butter Chicken', restaurant:'Spice Garden',
+      rating:'4.9',
+      descriptors:['Rich','Creamy','Warming'],
+      socialProof:'"Ordered this on my worst day and it helped." — 847 people agree',
+      feel:'🧡  9 out of 10 say this lifted their mood',
+      time:'25 min', price:'AED 55'
+    },
+    {
+      type:'healthy', emoji:'🥗',
+      bg:'linear-gradient(135deg,#D1FAE5,#6EE7B7)',
+      badge:{text:'Balanced',color:'#16A34A',bg:'#DCFCE7'},
+      name:'Grilled Chicken Power Bowl', restaurant:'Clean Kitchen Co.',
+      rating:'4.8', calories:420, protein:'38g', carbs:'32g', fat:'12g',
+      tags:['High Protein','Low Carb','Gluten Free'],
+      time:'18 min', price:'AED 52'
+    }
+  ]
+};
+
+const INTENTS = {
+  healthy: {
+    typingText: 'Eating healthy today',
+    searchText: 'Eating healthy',
+    interpretation: 'I\'m hearing <strong>nourishing and intentional</strong>. You want food that actually does something for you, not just fills you up.',
+    question: 'What\'s driving the healthy today?',
+    answers: [
+      { emoji:'💪', text:'Post-workout', sub:'Protein & recovery' },
+      { emoji:'🎯', text:'Hitting macros', sub:'Tracking calories' },
+      { emoji:'🌿', text:'Just eating clean', sub:'No specific goal' },
+      { emoji:'🩺', text:'Doctor\'s orders', sub:'Specific restrictions' }
+    ],
+    resultsKey:'healthy',
+    ctx: { icon:'🥗', title:'Healthy picks for you',
+      why:'Showing macros & health tags because you\'re eating with intent — calories, protein, carbs, fat upfront.' }
+  },
+  comfort: {
+    typingText: 'Comfort food, something warm',
+    searchText: 'Comfort food',
+    interpretation: 'Sounds like you need <strong>something that feels like a hug</strong>. Food that hits different when you need it most.',
+    question: 'What kind of comfort are we talking?',
+    answers: [
+      { emoji:'🍜', text:'Warm & heavy', sub:'Soups, stews, rice' },
+      { emoji:'🧀', text:'Cheesy & indulgent', sub:'Pizza, pasta, melts' },
+      { emoji:'🍟', text:'The classics', sub:'Burgers, fries' },
+      { emoji:'🎲', text:'Surprise me', sub:'You pick' }
+    ],
+    resultsKey:'comfort',
+    ctx: { icon:'🧡', title:'Comfort food that delivers',
+      why:'Showing mood ratings & social proof — because comfort food is emotional, not functional. These are dishes people reach for when it matters.' }
+  },
+  light: {
+    typingText: 'Something light, not too heavy',
+    searchText: 'Light & fresh',
+    interpretation: 'Got it — <strong>easy on the stomach</strong>. Something that won\'t slow you down. Calories are front and centre here.',
+    question: 'Light in what way?',
+    answers: [
+      { emoji:'🥗', text:'Fresh salads', sub:'Crisp & crunchy' },
+      { emoji:'🍱', text:'Small plates', sub:'Tapas, bites, mezze' },
+      { emoji:'🍵', text:'Soups & broths', sub:'Warm but gentle' },
+      { emoji:'🥙', text:'Wraps & bowls', sub:'Balanced & portable' }
+    ],
+    resultsKey:'light',
+    ctx: { icon:'🌿', title:'Light & easy',
+      why:'Calories shown big because that\'s what matters here — not macros, not reviews. Easy-to-digest signals front and centre.' }
+  },
+  unsure: {
+    typingText: 'Not really sure what I want…',
+    searchText: 'Help me decide',
+    interpretation: 'No problem — <strong>not knowing is actually useful</strong>. One question and I\'ll narrow it down.',
+    question: 'What\'s your mood right now?',
+    answers: [
+      { emoji:'😴', text:'Tired & hungry', sub:'Need fuel, fast' },
+      { emoji:'🎉', text:'Treating myself', sub:'Something special' },
+      { emoji:'😌', text:'Keeping it simple', sub:'Easy and familiar' },
+      { emoji:'🌟', text:'Feeling adventurous', sub:'Try something new' }
+    ],
+    resultsKey:'unsure',
+    ctx: { icon:'✨', title:'Picked for your mood',
+      why:'Mixed view — flexible, comfort, and nourishing options, because when you\'re unsure, one card type isn\'t enough.' }
+  },
+  quick: {
+    typingText: 'Fast, I need it now',
+    searchText: 'Quick delivery',
+    interpretation: '<strong>Speed is the priority.</strong> Everything here arrives in under 25 minutes. Delivery time leads every card.',
+    question: 'Quick — but any preference?',
+    answers: [
+      { emoji:'🍔', text:'Fast food', sub:'Always quick' },
+      { emoji:'🍕', text:'Pizza', sub:'Hot & fast' },
+      { emoji:'🥡', text:'Asian', sub:'Noodles, rice' },
+      { emoji:'🥗', text:'Healthy', sub:'Quick & clean' }
+    ],
+    resultsKey:'healthy',
+    ctx: { icon:'⚡', title:'Fast & reliable',
+      why:'Sorted by delivery time. Delivery ETA is the most important attribute — everything else is secondary.' }
+  },
+  usual: {
+    typingText: 'The usual',
+    searchText: 'My usual',
+    interpretation: 'Going with <strong>what you know and love</strong>. Based on your history — here are your top picks.',
+    question: 'Same as always, or mix it up?',
+    answers: [
+      { emoji:'🔁', text:'Exactly the same', sub:'Repeat last order' },
+      { emoji:'✨', text:'Something similar', sub:'Small variation' },
+      { emoji:'🆕', text:'New but familiar', sub:'Same cuisine, new dish' },
+      { emoji:'🎲', text:'Surprise me', sub:'Complete wildcard' }
+    ],
+    resultsKey:'comfort',
+    ctx: { icon:'🔁', title:'Your go-tos',
+      why:'Based on your order history. Comfort attributes shown — you already know these dishes, so the question is feeling, not information.' }
+  },
+  explore: {
+    typingText: 'Exploring options…',
+    searchText: 'Explore',
+    interpretation: 'Let\'s find something <strong>worth being excited about</strong>. What direction should we go?',
+    question: 'What sounds good right now?',
+    answers: [
+      { emoji:'🌍', text:'World flavors', sub:'Something international' },
+      { emoji:'💚', text:'Healthy & good', sub:'Nutritious options' },
+      { emoji:'🔥', text:'Comfort & indulgent', sub:'Treat yourself' },
+      { emoji:'⚡', text:'Fast & reliable', sub:'Quick delivery' }
+    ],
+    resultsKey:'comfort',
+    ctx: { icon:'🌍', title:'Worth trying today',
+      why:'Curated by what\'s popular and highly rated right now.' }
+  }
+};
+
+// ─── VENDOR DATA (for View All screen) ───────────────────
+const VENDORS = {
+  healthy: [
+    { emoji:'🥗', bg:'#D1FAE5', name:'Clean Kitchen Co.', meta:'Healthy · Power bowls', rating:'4.8 ⭐', time:'18 min', fee:'Free delivery', badge:{text:'Top rated',color:'#16A34A',bg:'#DCFCE7'} },
+    { emoji:'🐟', bg:'#FEF3C7', name:'The Wellness Table', meta:'Healthy · Seafood bowls', rating:'4.9 ⭐', time:'22 min', fee:'AED 5', badge:{text:'Trending',color:'#D97706',bg:'#FEF9C3'} },
+    { emoji:'🥙', bg:'#DBEAFE', name:'Fresh & Go', meta:'Wraps · Mediterranean', rating:'4.6 ⭐', time:'14 min', fee:'Free delivery', badge:{text:'Fastest',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🥑', bg:'#F0FDF4', name:'Green Bowl', meta:'Vegan · Salads', rating:'4.7 ⭐', time:'20 min', fee:'AED 5', badge:null },
+    { emoji:'🍱', bg:'#EDE9FE', name:'Macro Kitchen', meta:'Meal prep · Fitness food', rating:'4.8 ⭐', time:'25 min', fee:'Free delivery', badge:{text:'New',color:'#7C3AED',bg:'#F5F3FF'} },
+    { emoji:'🌯', bg:'#ECFDF5', name:'The Grain Co.', meta:'Whole grain · Plant-based', rating:'4.5 ⭐', time:'19 min', fee:'AED 8', badge:null },
+    { emoji:'🥦', bg:'#F0FDF4', name:'Verdura', meta:'Vegetables · Clean eating', rating:'4.7 ⭐', time:'23 min', fee:'Free delivery', badge:{text:'Deal',color:'#16A34A',bg:'#DCFCE7'} },
+    { emoji:'🍳', bg:'#FEF9C3', name:'Morning Table', meta:'Breakfast · Brunch', rating:'4.9 ⭐', time:'18 min', fee:'AED 5', badge:null },
+    { emoji:'🫙', bg:'#DBEAFE', name:'Umami House', meta:'Japanese · Light meals', rating:'4.7 ⭐', time:'12 min', fee:'Free delivery', badge:{text:'Popular',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🥗', bg:'#ECFDF5', name:'Café Légère', meta:'French · Salads', rating:'4.8 ⭐', time:'15 min', fee:'AED 6', badge:null },
+    { emoji:'🌱', bg:'#F0FDF4', name:'Root & Branch', meta:'Plant-based · Organic', rating:'4.6 ⭐', time:'28 min', fee:'Free delivery', badge:{text:'New',color:'#7C3AED',bg:'#F5F3FF'} },
+    { emoji:'🍗', bg:'#FEF3C7', name:'Lean Protein Bar', meta:'Grills · High protein', rating:'4.5 ⭐', time:'21 min', fee:'AED 5', badge:null },
+  ],
+  comfort: [
+    { emoji:'🍛', bg:'#FEE2E2', name:'Spice Garden', meta:'Indian · Curries', rating:'4.9 ⭐', time:'25 min', fee:'Free delivery', badge:{text:'Most loved',color:'#DC2626',bg:'#FEF2F2'} },
+    { emoji:'🍕', bg:'#FFF7ED', name:"Mama Rosa's", meta:'Italian · Pizza', rating:'4.8 ⭐', time:'30 min', fee:'AED 5', badge:{text:'Trending',color:'#EA580C',bg:'#FFF7ED'} },
+    { emoji:'🍔', bg:'#F3F4F6', name:'Patty Lab', meta:'Burgers · American', rating:'4.7 ⭐', time:'20 min', fee:'Free delivery', badge:{text:'Quick',color:'#374151',bg:'#F3F4F6'} },
+    { emoji:'🍜', bg:'#FEE2E2', name:'Noodle House', meta:'Asian · Ramen & noodles', rating:'4.8 ⭐', time:'22 min', fee:'AED 8', badge:null },
+    { emoji:'🧀', bg:'#FFF7ED', name:'Cheesy Business', meta:'Grilled cheese · Comfort', rating:'4.6 ⭐', time:'18 min', fee:'Free delivery', badge:{text:'Deal 20%',color:'#EA580C',bg:'#FFF7ED'} },
+    { emoji:'🥘', bg:'#FEE2E2', name:'The Stew Pot', meta:'Stews · Soul food', rating:'4.7 ⭐', time:'35 min', fee:'AED 5', badge:null },
+    { emoji:'🍟', bg:'#FEF3C7', name:"Fries & Co.", meta:'Sides · Comfort snacks', rating:'4.5 ⭐', time:'15 min', fee:'Free delivery', badge:{text:'New',color:'#7C3AED',bg:'#F5F3FF'} },
+    { emoji:'🫕', bg:'#FEE2E2', name:'Biryani Bros', meta:'South Asian · Rice dishes', rating:'4.9 ⭐', time:'28 min', fee:'AED 5', badge:{text:'Top rated',color:'#DC2626',bg:'#FEF2F2'} },
+    { emoji:'🍝', bg:'#FFF7ED', name:'Pasta Republic', meta:'Italian · Pasta', rating:'4.7 ⭐', time:'25 min', fee:'Free delivery', badge:null },
+    { emoji:'🥗', bg:'#FEE2E2', name:'Lebanese Corner', meta:'Lebanese · Mezze', rating:'4.8 ⭐', time:'20 min', fee:'AED 6', badge:{text:'Popular',color:'#DC2626',bg:'#FEF2F2'} },
+    { emoji:'🍖', bg:'#FFF7ED', name:'BBQ Pit', meta:'BBQ · Grilled meats', rating:'4.6 ⭐', time:'30 min', fee:'Free delivery', badge:null },
+    { emoji:'🍤', bg:'#FEE2E2', name:'Seafood Comfort', meta:'Seafood · Fried & grilled', rating:'4.7 ⭐', time:'22 min', fee:'AED 8', badge:{text:'Deal',color:'#EA580C',bg:'#FFF7ED'} },
+  ],
+  light: [
+    { emoji:'🥗', bg:'#ECFDF5', name:'Café Légère', meta:'French · Salads', rating:'4.8 ⭐', time:'15 min', fee:'AED 6', badge:{text:'Top rated',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🍵', bg:'#FEF9C3', name:'Umami House', meta:'Japanese · Light meals', rating:'4.7 ⭐', time:'12 min', fee:'Free delivery', badge:{text:'Fastest',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🥑', bg:'#EFF6FF', name:'Morning Table', meta:'Breakfast · Brunch', rating:'4.9 ⭐', time:'18 min', fee:'AED 5', badge:null },
+    { emoji:'🌮', bg:'#F0FDF4', name:'The Wrap Factory', meta:'Wraps · Light bites', rating:'4.6 ⭐', time:'16 min', fee:'Free delivery', badge:{text:'Deal',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🥣', bg:'#ECFDF5', name:'Bowl Theory', meta:'Açaí · Smoothie bowls', rating:'4.8 ⭐', time:'20 min', fee:'AED 5', badge:{text:'New',color:'#7C3AED',bg:'#F5F3FF'} },
+    { emoji:'🍱', bg:'#EDE9FE', name:'Bento Box Co.', meta:'Japanese · Bento sets', rating:'4.7 ⭐', time:'14 min', fee:'Free delivery', badge:null },
+    { emoji:'🫐', bg:'#EFF6FF', name:'Fresh Bites', meta:'Snacks · Light meals', rating:'4.5 ⭐', time:'10 min', fee:'Free delivery', badge:{text:'Fastest',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🥗', bg:'#ECFDF5', name:'Green Bowl', meta:'Vegan · Salads', rating:'4.7 ⭐', time:'18 min', fee:'AED 5', badge:null },
+    { emoji:'🍲', bg:'#EFF6FF', name:'Soup & Co.', meta:'Soups · Broths', rating:'4.6 ⭐', time:'22 min', fee:'Free delivery', badge:{text:'Trending',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🥟', bg:'#ECFDF5', name:'Dim Sum Light', meta:'Asian · Light dumplings', rating:'4.8 ⭐', time:'25 min', fee:'AED 8', badge:null },
+    { emoji:'🌯', bg:'#EFF6FF', name:'The Grain Co.', meta:'Whole grain · Wraps', rating:'4.5 ⭐', time:'19 min', fee:'Free delivery', badge:{text:'Deal',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🥗', bg:'#ECFDF5', name:'Verdura', meta:'Vegetables · Clean eating', rating:'4.7 ⭐', time:'23 min', fee:'AED 6', badge:null },
+  ],
+  unsure: [
+    { emoji:'🍱', bg:'#EDE9FE', name:'The Kitchen Lab', meta:'Customizable · Mixed', rating:'4.8 ⭐', time:'20 min', fee:'Free delivery', badge:{text:'AI pick',color:'#7C3AED',bg:'#F5F3FF'} },
+    { emoji:'🍛', bg:'#FEE2E2', name:'Spice Garden', meta:'Indian · Curries', rating:'4.9 ⭐', time:'25 min', fee:'Free delivery', badge:{text:'Most loved',color:'#DC2626',bg:'#FEF2F2'} },
+    { emoji:'🥗', bg:'#D1FAE5', name:'Clean Kitchen Co.', meta:'Healthy · Power bowls', rating:'4.8 ⭐', time:'18 min', fee:'AED 5', badge:null },
+    { emoji:'🍕', bg:'#FFF7ED', name:"Mama Rosa's", meta:'Italian · Pizza', rating:'4.8 ⭐', time:'30 min', fee:'AED 5', badge:{text:'Trending',color:'#EA580C',bg:'#FFF7ED'} },
+    { emoji:'🍜', bg:'#FEE2E2', name:'Noodle House', meta:'Asian · Ramen', rating:'4.8 ⭐', time:'22 min', fee:'AED 8', badge:null },
+    { emoji:'🥑', bg:'#DBEAFE', name:'Morning Table', meta:'Breakfast · Brunch', rating:'4.9 ⭐', time:'18 min', fee:'AED 5', badge:{text:'Popular',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🍔', bg:'#F3F4F6', name:'Patty Lab', meta:'Burgers · American', rating:'4.7 ⭐', time:'20 min', fee:'Free delivery', badge:null },
+    { emoji:'🥗', bg:'#ECFDF5', name:'Café Légère', meta:'French · Salads', rating:'4.8 ⭐', time:'15 min', fee:'AED 6', badge:null },
+    { emoji:'🍳', bg:'#FEF9C3', name:'Umami House', meta:'Japanese · Light meals', rating:'4.7 ⭐', time:'12 min', fee:'Free delivery', badge:{text:'Quick',color:'#2563EB',bg:'#DBEAFE'} },
+    { emoji:'🫕', bg:'#FEE2E2', name:'Biryani Bros', meta:'South Asian · Rice', rating:'4.9 ⭐', time:'28 min', fee:'AED 5', badge:{text:'Top rated',color:'#DC2626',bg:'#FEF2F2'} },
+    { emoji:'🍗', bg:'#FEF3C7', name:'Lean Protein Bar', meta:'Grills · High protein', rating:'4.5 ⭐', time:'21 min', fee:'Free delivery', badge:null },
+    { emoji:'🧀', bg:'#FFF7ED', name:'Cheesy Business', meta:'Grilled cheese · Comfort', rating:'4.6 ⭐', time:'18 min', fee:'Free delivery', badge:{text:'Deal 20%',color:'#EA580C',bg:'#FFF7ED'} },
+  ]
+};
+
+// ─── STATE ────────────────────────────────────────────────
+let currentIntent  = null;
+let currentResults = [];
+let currentResultsKey = null;
+
+// ─── TAB SWITCHING ────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  const tabEl = document.querySelector(`.tab-item[data-tab="${tab}"]`);
+  const contentEl = document.getElementById(`tab-${tab}`);
+  if (tabEl) tabEl.classList.add('active');
+  if (contentEl) contentEl.classList.add('active');
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────
+function showScreen(id, direction) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('hidden','exited');
+    if (s.id !== id) {
+      s.classList.add(direction === 'forward' ? 'exited' : 'hidden');
+    }
+  });
+}
+function goBack()  { showScreen('screen-home', 'backward'); currentIntent = null; }
+function goToAI()  { showScreen('screen-ai', 'backward'); }
+
+// ─── FLOW ────────────────────────────────────────────────
+function startSearch(intent) {
+  currentIntent = intent;
+  const data = INTENTS[intent];
+  if (!data) return;
+
+  showScreen('screen-ai', 'forward');
+  document.getElementById('screen-ai').setAttribute('data-intent', intent);
+
+  // reset
+  const aiCard     = document.getElementById('ai-card');
+  const answersSec = document.getElementById('answers-section');
+  const typingEl   = document.getElementById('typing-text');
+  aiCard.classList.remove('visible');
+  answersSec.classList.remove('visible');
+  document.getElementById('loading-dots').style.display = 'flex';
+  document.getElementById('ai-interpretation').innerHTML = '';
+  document.getElementById('ai-question').textContent = '';
+  document.getElementById('answers-grid').innerHTML = '';
+  document.getElementById('ai-search-text').textContent = 'Understanding your request…';
+  typingEl.innerHTML = '<span class="cursor"></span>';
+
+  typeText(data.typingText, typingEl, () => {
+    document.getElementById('ai-search-text').textContent = data.searchText;
+
+    setTimeout(() => {
+      aiCard.classList.add('visible');
+
+      setTimeout(() => {
+        document.getElementById('loading-dots').style.display = 'none';
+        document.getElementById('ai-interpretation').innerHTML = data.interpretation;
+        document.getElementById('ai-question').textContent = data.question;
+
+        setTimeout(() => {
+          answersSec.classList.add('visible');
+          buildAnswers(data.answers, intent);
+        }, 200);
+      }, 1100);
+    }, 300);
+  });
+}
+
+function typeText(text, el, cb) {
+  let i = 0;
+  (function tick() {
+    if (i < text.length) {
+      el.innerHTML = text.substring(0, ++i) + '<span class="cursor"></span>';
+      setTimeout(tick, 32 + Math.random() * 18);
+    } else {
+      el.innerHTML = text;
+      if (cb) setTimeout(cb, 250);
+    }
+  })();
+}
+
+function buildAnswers(answers, intent) {
+  const grid = document.getElementById('answers-grid');
+  grid.innerHTML = '';
+  answers.forEach((a, i) => {
+    const el = document.createElement('div');
+    el.className = 'answer-chip';
+    el.innerHTML = `<div class="answer-emoji">${a.emoji}</div><div class="answer-text">${a.text}</div><div class="answer-sub">${a.sub}</div>`;
+    el.onclick = () => showResults(intent, a.text);
+    grid.appendChild(el);
+    setTimeout(() => el.classList.add('visible'), i * 75);
+  });
+}
+
+function showResults(intent, answer) {
+  const data = INTENTS[intent];
+  const ctx  = data.ctx;
+  currentResultsKey = data.resultsKey;
+  currentResults = [...(RESULTS[data.resultsKey] || RESULTS.comfort)];
+
+  document.getElementById('results-title').textContent   = ctx.title;
+  document.getElementById('context-icon').textContent    = ctx.icon;
+  document.getElementById('context-intent-text').textContent = `${answer} · ${data.searchText}`;
+  document.getElementById('context-why-text').textContent   = ctx.why;
+
+  const vendorCount = (VENDORS[currentResultsKey] || VENDORS.unsure).length;
+  document.getElementById('view-all-count').textContent = `(${vendorCount} restaurants)`;
+
+  buildResultCards(currentResults);
+  showScreen('screen-results', 'forward');
+}
+
+// ─── SHUFFLE ──────────────────────────────────────────────
+function shuffleResults() {
+  const btn = document.getElementById('shuffle-btn');
+  btn.classList.remove('spinning');
+  void btn.offsetWidth;
+  btn.classList.add('spinning');
+
+  for (let i = currentResults.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [currentResults[i], currentResults[j]] = [currentResults[j], currentResults[i]];
+  }
+
+  const list = document.getElementById('results-list');
+  list.querySelectorAll('.result-card').forEach(c => c.classList.remove('visible'));
+
+  setTimeout(() => buildResultCards(currentResults), 220);
+}
+
+// ─── REFINE SHEET ─────────────────────────────────────────
+function openRefineSheet() {
+  document.getElementById('refine-overlay').classList.add('open');
+  document.getElementById('refine-sheet').classList.add('open');
+}
+function closeRefineSheet() {
+  document.getElementById('refine-overlay').classList.remove('open');
+  document.getElementById('refine-sheet').classList.remove('open');
+}
+function toggleFilter(el) {
+  el.classList.toggle('active');
+}
+function applyFilters() {
+  closeRefineSheet();
+}
+
+// ─── VIEW ALL ─────────────────────────────────────────────
+function showAllVendors() {
+  const vendors = VENDORS[currentResultsKey] || VENDORS.unsure;
+  const data = INTENTS[currentIntent];
+  document.getElementById('all-title').textContent = data ? data.ctx.title : 'All Restaurants';
+  buildVendorList(vendors);
+  showScreen('screen-all', 'forward');
+}
+
+function buildVendorList(vendors) {
+  const list = document.getElementById('vendors-list');
+  list.innerHTML = '';
+  vendors.forEach((v, i) => {
+    const el = document.createElement('div');
+    el.className = 'vendor-item';
+    el.innerHTML = `
+      <div class="vendor-emoji" style="background:${v.bg}">${v.emoji}</div>
+      <div class="vendor-info">
+        <div class="vendor-name">${v.name}</div>
+        <div class="vendor-meta">${v.meta}</div>
+        <div class="vendor-row">
+          <span class="vendor-rating">${v.rating}</span>
+          <span class="vendor-time">· 🕐 ${v.time}</span>
+          <span class="vendor-fee">· ${v.fee}</span>
+          ${v.badge ? `<span class="vendor-badge" style="color:${v.badge.color};background:${v.badge.bg}">${v.badge.text}</span>` : ''}
+        </div>
+      </div>
+      <div class="vendor-chevron">›</div>`;
+    list.appendChild(el);
+    setTimeout(() => el.classList.add('visible'), i * 45);
+  });
+}
+
+// ─── CARD BUILDER ─────────────────────────────────────────
+function buildResultCards(results) {
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+  results.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = cardHTML(item);
+    list.appendChild(card);
+    setTimeout(() => card.classList.add('visible'), i * 110 + 80);
+  });
+}
+
+function cardHTML(item) {
+  let attrs = '';
+
+  if (item.type === 'healthy') {
+    attrs = `
+      <div class="macros-row">
+        <div class="macro-pill"><div class="macro-value">${item.calories}</div><div class="macro-label">kcal</div></div>
+        <div class="macro-pill"><div class="macro-value">${item.protein}</div><div class="macro-label">protein</div></div>
+        <div class="macro-pill"><div class="macro-value">${item.carbs}</div><div class="macro-label">carbs</div></div>
+        <div class="macro-pill"><div class="macro-value">${item.fat}</div><div class="macro-label">fat</div></div>
+      </div>
+      <div class="health-tags">${item.tags.map(t=>`<span class="health-tag">${t}</span>`).join('')}</div>`;
+
+  } else if (item.type === 'comfort') {
+    attrs = `
+      <div class="comfort-descriptors">${item.descriptors.map(d=>`<span class="comfort-word">${d}</span>`).join('')}</div>
+      <div class="social-proof">${item.socialProof}</div>
+      <div class="comfort-feel">${item.feel}</div>`;
+
+  } else if (item.type === 'light') {
+    attrs = `
+      <div class="calorie-hero">
+        <span class="calorie-big">${item.calories}</span>
+        <span class="calorie-unit">kcal</span>
+        <span class="calorie-feel"> · ${item.feel}</span>
+      </div>
+      <div class="light-indicators">${item.indicators.map(t=>`<span class="light-indicator">${t}</span>`).join('')}</div>`;
+
+  } else if (item.type === 'unsure') {
+    attrs = `
+      <div class="comfort-descriptors">${item.descriptors.map(d=>`<span class="comfort-word" style="background:var(--purple-soft);color:var(--purple)">${d}</span>`).join('')}</div>
+      <div class="unsure-why">${item.why}</div>
+      <div class="unsure-mood">${item.moodProof}</div>`;
+
+  } else if (item.type === 'drip') {
+    const filled = Math.round(item.drip / 2);
+    const icons  = Array.from({length: 5}, (_, i) => i < filled ? '💧' : '·').join('');
+    attrs = `
+      <div class="drip-rating">
+        <div class="drip-label">Drip Rating</div>
+        <div class="drip-score">
+          <span class="drip-number">${item.drip}</span>
+          <span class="drip-max">/10</span>
+          <span class="drip-icons">${icons}</span>
+        </div>
+      </div>
+      <div class="drip-attrs">
+        <div class="drip-row"><span class="drip-key">Patty</span><span class="drip-val">${item.patty}</span></div>
+        <div class="drip-row"><span class="drip-key">Cheese</span><span class="drip-val">${item.cheese}</span></div>
+        <div class="drip-row"><span class="drip-key">Mess</span><span class="drip-val">${item.mess}</span></div>
+      </div>`;
+  }
+
+  return `
+    <div class="card-image" style="background:${item.bg}">
+      ${item.emoji}
+      <div class="card-badge" style="color:${item.badge.color};background:${item.badge.bg}">${item.badge.text}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-top">
+        <div class="card-name">${item.name}</div>
+        <div class="card-rating">⭐ ${item.rating}</div>
+      </div>
+      <div class="card-restaurant">${item.restaurant}</div>
+      ${attrs}
+      <div class="card-footer">
+        <div class="delivery-info">
+          <div class="delivery-time">🕐 ${item.time}</div>
+          <div class="delivery-price">${item.price}</div>
+        </div>
+        <div class="add-btn">+</div>
+      </div>
+    </div>`;
+}
+
+// ─── SIMPLE SEARCH VENDOR DATA ────────────────────────────
+const SIMPLE_VENDORS = {
+  burger: [
+    { emoji:'🍟', bg:'#FFF7ED', name:"McDonald's", meta:'Fast food · Burgers & fries', rating:'4.5 ⭐', time:'15 min', fee:'Free delivery', badge:{text:'Popular',color:'#EA580C',bg:'#FFF7ED'} },
+    { emoji:'👑', bg:'#FEF3C7', name:'Burger King', meta:'Fast food · Flame grilled', rating:'4.4 ⭐', time:'18 min', fee:'AED 5', badge:{text:'Deal 15%',color:'#D97706',bg:'#FEF9C3'} },
+    { emoji:'🤠', bg:'#FEE2E2', name:"Hardee's", meta:'Fast food · Charbroiled burgers', rating:'4.3 ⭐', time:'20 min', fee:'Free delivery', badge:null },
+    { emoji:'⭐', bg:'#F3F4F6', name:'Five Guys', meta:'Premium burgers · American', rating:'4.8 ⭐', time:'25 min', fee:'AED 8', badge:{text:'Top rated',color:'#374151',bg:'#F3F4F6'} },
+  ],
+  pizza: [
+    { emoji:'🍕', bg:'#FFF7ED', name:"Mama Rosa's", meta:'Italian · Wood-fired pizza', rating:'4.8 ⭐', time:'28 min', fee:'AED 5', badge:{text:'Trending',color:'#EA580C',bg:'#FFF7ED'} },
+    { emoji:'🔴', bg:'#FEE2E2', name:"Pizza Hut", meta:'Fast food · Delivery pizza', rating:'4.3 ⭐', time:'22 min', fee:'Free delivery', badge:{text:'Deal',color:'#DC2626',bg:'#FEF2F2'} },
+    { emoji:'🍕', bg:'#FFF7ED', name:'Domino\'s', meta:'Fast food · Pizza & sides', rating:'4.2 ⭐', time:'20 min', fee:'Free delivery', badge:null },
+    { emoji:'🇮🇹', bg:'#F0FDF4', name:'Al Forno', meta:'Italian · Artisan pizza', rating:'4.9 ⭐', time:'35 min', fee:'AED 8', badge:{text:'Top rated',color:'#16A34A',bg:'#DCFCE7'} },
+  ],
+  sushi: [
+    { emoji:'🍱', bg:'#EDE9FE', name:'Umami House', meta:'Japanese · Sushi & rolls', rating:'4.7 ⭐', time:'22 min', fee:'AED 8', badge:{text:'Popular',color:'#7C3AED',bg:'#F5F3FF'} },
+    { emoji:'🎌', bg:'#DBEAFE', name:'Sushi Station', meta:'Japanese · Conveyor sushi', rating:'4.5 ⭐', time:'30 min', fee:'AED 10', badge:null },
+    { emoji:'🐟', bg:'#ECFDF5', name:'Ocean Rolls', meta:'Japanese-fusion · Sushi burritos', rating:'4.6 ⭐', time:'25 min', fee:'Free delivery', badge:{text:'New',color:'#7C3AED',bg:'#F5F3FF'} },
+    { emoji:'🍣', bg:'#EDE9FE', name:'Nobu Casual', meta:'Japanese · Premium rolls', rating:'4.9 ⭐', time:'40 min', fee:'AED 15', badge:{text:'Top rated',color:'#7C3AED',bg:'#F5F3FF'} },
+  ]
+};
+
+// ─── AI BURGER RESULT CARDS ───────────────────────────────
+const BURGER_AI_RESULTS = [
+  {
+    type:'drip', emoji:'🍔',
+    bg:'linear-gradient(135deg,#FFF7ED,#FED7AA)',
+    badge:{text:'💧 Drip pick',color:'#EA580C',bg:'#FFF7ED'},
+    name:'Double Smash Stack', restaurant:'Patty Lab',
+    rating:'4.9', drip:9.2,
+    patty:'Double smash, 200g beef',
+    cheese:'American cheese pull',
+    mess:'High — napkins required',
+    time:'20 min', price:'AED 72'
+  },
+  {
+    type:'drip', emoji:'🥩',
+    bg:'linear-gradient(135deg,#FEE2E2,#FECACA)',
+    badge:{text:'🔥 Staff pick',color:'#DC2626',bg:'#FEF2F2'},
+    name:'The Juicy Lucy', restaurant:'Burger & Beyond',
+    rating:'4.8', drip:8.7,
+    patty:'Stuffed single, 220g',
+    cheese:'Molten cheddar inside',
+    mess:'Medium — beautifully manageable',
+    time:'22 min', price:'AED 68'
+  },
+  {
+    type:'drip', emoji:'🥓',
+    bg:'linear-gradient(135deg,#FEF9C3,#FDE68A)',
+    badge:{text:'📈 Trending',color:'#D97706',bg:'#FEF9C3'},
+    name:'Bacon BBQ Smash', restaurant:'Smoke & Barrel',
+    rating:'4.7', drip:8.1,
+    patty:'Single smash + bacon, 180g',
+    cheese:'Smoked gouda',
+    mess:'Medium — worth every drip',
+    time:'28 min', price:'AED 82'
+  }
+];
+
+// ─── SMART SEARCH ─────────────────────────────────────────
+const CONVERSATIONAL_WORDS = ['want','craving','need','something','juicy','meaty','crispy','warm','fresh','heavy','spicy','sweet','salty','feel','mood','hungry','fancy','could','looking','kind of','bit of','like a','give me','show me'];
+
+function isConversational(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (trimmed.split(/\s+/).length >= 4) return true;
+  const lower = trimmed.toLowerCase();
+  return CONVERSATIONAL_WORDS.some(w => lower.includes(w));
+}
+
+function handleSearch(query) {
+  const lower = query.toLowerCase().trim();
+
+  document.getElementById('home-search-input').value = '';
+  document.getElementById('home-search-bar').classList.remove('ai-mode');
+  document.getElementById('home-ai-badge').classList.remove('visible');
+
+  if (isConversational(query)) {
+    const isBurger = /burger|meaty|patty|smash|beef|bun/.test(lower);
+    if (isBurger) {
+      currentResultsKey = 'comfort';
+      currentResults = [...BURGER_AI_RESULTS];
+      document.getElementById('results-title').textContent   = 'Burgers worth the mess';
+      document.getElementById('context-icon').textContent    = '💧';
+      document.getElementById('context-intent-text').textContent = `"${query}"`;
+      document.getElementById('context-why-text').textContent = 'Showing Drip Rating — you asked for juicy, so we ranked by messiness potential.';
+      document.getElementById('view-all-count').textContent  = '(8 burger restaurants)';
+      buildResultCards(currentResults);
+      showScreen('screen-results', 'forward');
+    } else {
+      startSearch('explore');
+    }
+  } else {
+    const keyword = lower.split(/\s+/)[0];
+    const vendors = SIMPLE_VENDORS[keyword];
+    if (vendors) {
+      document.getElementById('all-title').textContent = `Results for "${query}"`;
+      buildVendorList(vendors);
+      showScreen('screen-all', 'forward');
+    } else {
+      startSearch('explore');
+    }
+  }
+}
+
+// ─── RESULT FILTER CHIPS ──────────────────────────────────
+function toggleResultFilter(el) {
+  el.classList.toggle('active');
+}
+
+// ─── SEARCH BAR EVENT LISTENERS ───────────────────────────
+(function initSearchBar() {
+  const input  = document.getElementById('home-search-input');
+  const bar    = document.getElementById('home-search-bar');
+  const badge  = document.getElementById('home-ai-badge');
+
+  input.addEventListener('input', () => {
+    if (isConversational(input.value)) {
+      bar.classList.add('ai-mode');
+      badge.classList.add('visible');
+    } else {
+      bar.classList.remove('ai-mode');
+      badge.classList.remove('visible');
+    }
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const val = input.value.trim();
+      if (val) handleSearch(val);
+    }
+  });
+})();
+</script>
+</body>
+</html>
