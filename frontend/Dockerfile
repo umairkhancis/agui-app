@@ -11,7 +11,8 @@ COPY public/ ./public/
 COPY next.config.ts tsconfig.json postcss.config.mjs showcase.json ./
 
 ENV NODE_OPTIONS="--max-old-space-size=1024"
-RUN npx next build
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npx next build --webpack
 
 # Stage 2: Production runner
 FROM node:20-slim AS runner

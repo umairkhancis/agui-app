@@ -1,14 +1,14 @@
 "use client";
 
 import { ExampleLayout } from "@/components/example-layout";
-import { ExampleCanvas } from "@/components/example-canvas";
+import { FoodDiscoveryCanvas } from "@/components/food-discovery-canvas";
 import { useGenerativeUIExamples, useExampleSuggestions } from "@/hooks";
 
 import { CopilotChat } from "@copilotkit/react-core/v2";
 
 export default function HomePage() {
-  useGenerativeUIExamples();
-  useExampleSuggestions();
+  // useGenerativeUIExamples();
+  // useExampleSuggestions();
 
   return (
     <ExampleLayout
@@ -18,7 +18,7 @@ export default function HomePage() {
           input={{ disclaimer: () => null, className: "pb-6" }}
         />
       }
-      appContent={<ExampleCanvas />}
+      appContent={<FoodDiscoveryCanvas />}
     />
   );
 }
