@@ -11,6 +11,7 @@ from langchain.agents import create_agent
 # Data & state tools
 from src.query import query_data
 from src.todos import AgentState, todo_tools
+from src.food_discovery import food_discovery_tools
 
 # A2UI tools
 from src.a2ui_dynamic_schema import generate_a2ui
@@ -30,7 +31,13 @@ model = ChatOpenAI(
 
 agent = create_agent(
     model=model,
-    tools=[query_data, *todo_tools, generate_a2ui, search_flights],
+    tools=[
+        query_data,
+        *todo_tools,
+        *food_discovery_tools,
+        generate_a2ui,
+        search_flights,
+    ],
     middleware=[
         CopilotKitMiddleware(),
         StateStreamingMiddleware(
@@ -49,6 +56,12 @@ agent = create_agent(
         - Todos: enable app mode first, then manage todos.
         - A2UI actions: when you see a log_a2ui_event result (e.g. "view_details"),
           respond with a brief confirmation. The UI already updated on the frontend.
+        - Food discovery: when the user expresses a food mood, call start_food_discovery(intent)
+          where intent is one of: healthy, comfort, light, unsure, quick, usual, explore.
+          When the user picks a sub-option from the interpretation screen (e.g. "Post-workout",
+          "Cheesy & indulgent"), call show_food_results(intent, sub_option) using the same
+          intent. When the user wants to go back, restart, or pick a different mood, call
+          reset_food_discovery. The UI updates automatically; reply with a brief confirmation.
     """,
 )
 
