@@ -1,7 +1,7 @@
 "use client";
 
 import { useAgent } from "@copilotkit/react-core/v2";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // ── Types (mirror backend TypedDicts in agent/src/food_discovery.py) ──────
 interface Badge {
@@ -66,6 +66,7 @@ interface ChipItem {
   label: string;
   variant: ChipVariant;
   intent: string;
+  typingText: string;
   message: string;
 }
 
@@ -75,6 +76,7 @@ const chips: ChipItem[] = [
     label: "✦ Not sure",
     variant: "unsure",
     intent: "unsure",
+    typingText: "Not really sure what I want…",
     message: "I'm not sure what to eat today, help me decide!",
   },
   {
@@ -82,6 +84,7 @@ const chips: ChipItem[] = [
     label: "🥗 Healthy",
     variant: "healthy",
     intent: "healthy",
+    typingText: "Eating healthy today",
     message: "I'm in the mood for something healthy today.",
   },
   {
@@ -89,6 +92,7 @@ const chips: ChipItem[] = [
     label: "🍜 Comfort food",
     variant: "comfort",
     intent: "comfort",
+    typingText: "Comfort food, something warm",
     message: "I want comfort food today.",
   },
   {
@@ -96,6 +100,7 @@ const chips: ChipItem[] = [
     label: "🌿 Light",
     variant: "light",
     intent: "light",
+    typingText: "Something light, not too heavy",
     message: "I'm looking for something light to eat.",
   },
   {
@@ -103,6 +108,7 @@ const chips: ChipItem[] = [
     label: "⚡ Quick",
     variant: "default",
     intent: "quick",
+    typingText: "Fast, I need it now",
     message: "I need something quick to eat.",
   },
   {
@@ -110,6 +116,7 @@ const chips: ChipItem[] = [
     label: "🔁 My usual",
     variant: "default",
     intent: "usual",
+    typingText: "The usual",
     message: "Show me my usual food choices.",
   },
 ];
@@ -120,6 +127,7 @@ interface CardItem {
   label: string;
   gradient: string;
   intent: string;
+  typingText: string;
   message: string;
 }
 
@@ -130,6 +138,7 @@ const cards: CardItem[] = [
     label: "Eating healthy",
     gradient: "linear-gradient(135deg,#D1FAE5,#A7F3D0)",
     intent: "healthy",
+    typingText: "Eating healthy today",
     message: "Help me find healthy food options.",
   },
   {
@@ -138,6 +147,7 @@ const cards: CardItem[] = [
     label: "Comfort food",
     gradient: "linear-gradient(135deg,#FEE2E2,#FECACA)",
     intent: "comfort",
+    typingText: "Comfort food, something warm",
     message: "I want comfort food today.",
   },
   {
@@ -146,6 +156,7 @@ const cards: CardItem[] = [
     label: "Light & fresh",
     gradient: "linear-gradient(135deg,#DBEAFE,#BFDBFE)",
     intent: "light",
+    typingText: "Something light, not too heavy",
     message: "I'm looking for something light and fresh.",
   },
   {
@@ -154,6 +165,7 @@ const cards: CardItem[] = [
     label: "Surprise me",
     gradient: "linear-gradient(135deg,#EDE9FE,#DDD6FE)",
     intent: "explore",
+    typingText: "Exploring options…",
     message: "Surprise me — explore some options for me.",
   },
 ];
@@ -166,9 +178,28 @@ const chipStyles: Record<ChipVariant, React.CSSProperties> = {
   default: { borderColor: "#E5E5E5", color: "#404040", background: "white" },
 };
 
+// ── Pending transition (immediate feedback while agent is running) ────────
+type PendingTransition =
+  | {
+      toScreen: "aiInterpretation";
+      intent: string;
+      typingText: string;
+      searchText: string;
+    }
+  | {
+      toScreen: "results";
+      intent: string;
+      selectedAnswer: string;
+    };
+
 // ── Top-level component ───────────────────────────────────────────────────
 export function FoodDiscoveryCanvas() {
   const { agent } = useAgent();
+  const isRunning: boolean = Boolean(
+    (agent as unknown as { isRunning?: boolean }).isRunning,
+  );
+
+  const [pending, setPending] = useState<PendingTransition | null>(null);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -187,17 +218,119 @@ export function FoodDiscoveryCanvas() {
     | null
     | undefined;
 
+  // Clear the pending overlay once the agent's state catches up, or fall back
+  // to the underlying view after the agent stops without producing the
+  // expected state (e.g. LLM forgot to call the tool).
+  useEffect(() => {
+    if (!pending) return;
+
+    const matched =
+      state?.screen === pending.toScreen &&
+      state?.intent === pending.intent &&
+      (pending.toScreen !== "results" ||
+        state?.selectedAnswer === pending.selectedAnswer);
+
+    if (matched) {
+      setPending(null);
+      return;
+    }
+
+    if (!isRunning) {
+      const t = setTimeout(() => setPending(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [state, isRunning, pending]);
+
+  const startInterpretationLoading = useCallback(
+    (intent: string, typingText: string, searchText: string, message: string) => {
+      setPending({ toScreen: "aiInterpretation", intent, typingText, searchText });
+      sendMessage(message);
+    },
+    [sendMessage],
+  );
+
+  const startResultsLoading = useCallback(
+    (intent: string, selectedAnswer: string, message: string) => {
+      setPending({ toScreen: "results", intent, selectedAnswer });
+      sendMessage(message);
+    },
+    [sendMessage],
+  );
+
+  const goHome = useCallback(() => {
+    setPending(null);
+    sendMessage("Take me back to the food discovery home screen.");
+  }, [sendMessage]);
+
+  if (pending?.toScreen === "aiInterpretation") {
+    return (
+      <InterpretationLoadingView
+        typingText={pending.typingText}
+        searchText={pending.searchText}
+        isRunning={isRunning}
+        onBack={goHome}
+      />
+    );
+  }
+  if (pending?.toScreen === "results") {
+    return (
+      <ResultsLoadingView
+        selectedAnswer={pending.selectedAnswer}
+        isRunning={isRunning}
+        onBack={goHome}
+      />
+    );
+  }
   if (state?.screen === "results") {
-    return <ResultsView state={state} sendMessage={sendMessage} />;
+    return (
+      <ResultsView state={state} onBack={goHome} onPickAnswer={() => undefined} />
+    );
   }
   if (state?.screen === "aiInterpretation") {
-    return <InterpretationView state={state} sendMessage={sendMessage} />;
+    return (
+      <InterpretationView
+        state={state}
+        onBack={goHome}
+        onPickAnswer={(answer) =>
+          startResultsLoading(
+            state.intent,
+            answer.text,
+            `I'll go with "${answer.text}" for the ${state.intent} mood.`,
+          )
+        }
+      />
+    );
   }
-  return <HomeView sendMessage={sendMessage} />;
+  return (
+    <HomeView
+      onPickChip={(chip) =>
+        startInterpretationLoading(
+          chip.intent,
+          chip.typingText,
+          chip.label.replace(/^[^A-Za-z]+/, "").trim(),
+          chip.message,
+        )
+      }
+      onPickCard={(card) =>
+        startInterpretationLoading(
+          card.intent,
+          card.typingText,
+          card.label,
+          card.message,
+        )
+      }
+    />
+  );
 }
 
 // ── Home view (original chips + cards UI) ─────────────────────────────────
-function HomeView({ sendMessage }: { sendMessage: (text: string) => void }) {
+function HomeView({
+  onPickChip,
+  onPickCard,
+}: {
+  onPickChip: (chip: ChipItem) => void;
+  onPickCard: (card: CardItem) => void;
+}) {
   return (
     <div style={scrollPaneStyle}>
       <div style={{ padding: "36px 24px 20px" }}>
@@ -229,7 +362,7 @@ function HomeView({ sendMessage }: { sendMessage: (text: string) => void }) {
         {chips.map((chip) => (
           <button
             key={chip.id}
-            onClick={() => sendMessage(chip.message)}
+            onClick={() => onPickChip(chip)}
             style={{
               display: "flex",
               alignItems: "center",
@@ -293,7 +426,7 @@ function HomeView({ sendMessage }: { sendMessage: (text: string) => void }) {
         {cards.map((card) => (
           <button
             key={card.id}
-            onClick={() => sendMessage(card.message)}
+            onClick={() => onPickCard(card)}
             style={{
               minWidth: 180,
               height: 140,
@@ -361,21 +494,16 @@ function HomeView({ sendMessage }: { sendMessage: (text: string) => void }) {
 // ── AI interpretation view (matches screenshot) ───────────────────────────
 function InterpretationView({
   state,
-  sendMessage,
+  onBack,
+  onPickAnswer,
 }: {
   state: FoodDiscoveryState;
-  sendMessage: (text: string) => void;
+  onBack: () => void;
+  onPickAnswer: (answer: Answer) => void;
 }) {
   return (
     <div style={scrollPaneStyle}>
-      <BackHeader
-        onBack={() =>
-          sendMessage(
-            "Take me back to the food discovery home screen.",
-          )
-        }
-        aiSearchText={state.searchText}
-      />
+      <BackHeader onBack={onBack} aiSearchText={state.searchText} />
 
       <div style={{ padding: "20px 24px 8px" }}>
         <div
@@ -482,11 +610,7 @@ function InterpretationView({
         {state.answers.map((answer) => (
           <button
             key={answer.text}
-            onClick={() =>
-              sendMessage(
-                `I'll go with "${answer.text}" for the ${state.intent} mood.`,
-              )
-            }
+            onClick={() => onPickAnswer(answer)}
             style={{
               textAlign: "left",
               padding: "14px 16px",
@@ -543,22 +667,16 @@ function InterpretationView({
 // ── Results view ──────────────────────────────────────────────────────────
 function ResultsView({
   state,
-  sendMessage,
+  onBack,
 }: {
   state: FoodDiscoveryState;
-  sendMessage: (text: string) => void;
+  onBack: () => void;
+  onPickAnswer: (answer: Answer) => void;
 }) {
   const ctx = state.context;
   return (
     <div style={scrollPaneStyle}>
-      <BackHeader
-        onBack={() =>
-          sendMessage(
-            "Take me back to the food discovery home screen.",
-          )
-        }
-        title={ctx?.title ?? "Results"}
-      />
+      <BackHeader onBack={onBack} title={ctx?.title ?? "Results"} />
 
       {ctx && (
         <div style={{ padding: "16px 24px 0" }}>
@@ -922,6 +1040,306 @@ function ResultCardBody({ card }: { card: FoodCard }) {
   }
 
   return null;
+}
+
+// ── Loading views (shown while agent is generating the next state) ───────
+function InterpretationLoadingView({
+  typingText,
+  searchText,
+  isRunning,
+  onBack,
+}: {
+  typingText: string;
+  searchText: string;
+  isRunning: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <div style={scrollPaneStyle}>
+      <BackHeader onBack={onBack} aiSearchText={searchText} />
+
+      <div style={{ padding: "20px 24px 8px" }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#A3A3A3",
+            letterSpacing: "0.8px",
+            textTransform: "uppercase",
+            marginBottom: 6,
+          }}
+        >
+          You're looking for
+        </div>
+        <div
+          style={{
+            fontSize: 30,
+            fontWeight: 800,
+            color: "#0A0A0A",
+            lineHeight: 1.2,
+          }}
+        >
+          {typingText}
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 24px 0" }}>
+        <div
+          style={{
+            background: "#F0FDF4",
+            border: "1px solid #BBF7D0",
+            borderRadius: 16,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: "#16A34A",
+                color: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              ✦
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#16A34A",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              AI · Reading your intent
+              <LoadingDots color="#16A34A" />
+            </div>
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            <Skeleton width="92%" />
+            <Skeleton width="80%" />
+            <Skeleton width="55%" />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "26px 24px 10px", ...sectionLabelInline }}>
+        Pick what feels right
+      </div>
+
+      <div
+        style={{
+          padding: "0 24px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 12,
+        }}
+      >
+        {[0, 1, 2, 3].map((i) => (
+          <AnswerSkeleton key={i} />
+        ))}
+      </div>
+
+      <AgentActivityFooter isRunning={isRunning} label="Agent is reading your intent" />
+
+      <div style={{ height: 48 }} />
+    </div>
+  );
+}
+
+function ResultsLoadingView({
+  selectedAnswer,
+  isRunning,
+  onBack,
+}: {
+  selectedAnswer: string;
+  isRunning: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <div style={scrollPaneStyle}>
+      <BackHeader onBack={onBack} title={`Finding ${selectedAnswer} options…`} />
+
+      <div style={{ padding: "16px 24px 0" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            background: "#FAFAFA",
+            border: "1px solid #EAEAEA",
+            borderRadius: 14,
+            padding: "12px 14px",
+          }}
+        >
+          <Skeleton width={36} height={36} radius={10} />
+          <div style={{ flex: 1, display: "grid", gap: 6 }}>
+            <Skeleton width="60%" />
+            <Skeleton width="85%" />
+          </div>
+          <LoadingDots color="#737373" />
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 24px 0", display: "grid", gap: 16 }}>
+        {[0, 1, 2].map((i) => (
+          <FoodResultCardSkeleton key={i} />
+        ))}
+      </div>
+
+      <AgentActivityFooter
+        isRunning={isRunning}
+        label={`Agent is curating ${selectedAnswer} options`}
+      />
+
+      <div style={{ height: 48 }} />
+    </div>
+  );
+}
+
+function FoodResultCardSkeleton() {
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        overflow: "hidden",
+        border: "1px solid #EAEAEA",
+        background: "white",
+      }}
+    >
+      <Skeleton height={110} radius={0} />
+      <div style={{ padding: "14px 16px 16px", display: "grid", gap: 8 }}>
+        <Skeleton width="65%" />
+        <Skeleton width="40%" />
+        <div style={{ height: 6 }} />
+        <div style={{ display: "flex", gap: 6 }}>
+          <Skeleton width={60} height={28} radius={10} />
+          <Skeleton width={60} height={28} radius={10} />
+          <Skeleton width={60} height={28} radius={10} />
+          <Skeleton width={60} height={28} radius={10} />
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Skeleton width={70} height={20} radius={100} />
+          <Skeleton width={70} height={20} radius={100} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnswerSkeleton() {
+  return (
+    <div
+      style={{
+        padding: "14px 16px",
+        borderRadius: 16,
+        border: "1px solid #E5E7EB",
+        background: "white",
+        display: "grid",
+        gap: 8,
+      }}
+    >
+      <Skeleton width={24} height={24} radius={6} />
+      <Skeleton width="60%" />
+      <Skeleton width="80%" />
+    </div>
+  );
+}
+
+function Skeleton({
+  width = "100%",
+  height = 12,
+  radius = 8,
+}: {
+  width?: number | string;
+  height?: number | string;
+  radius?: number;
+}) {
+  const [bright, setBright] = useState(false);
+  useEffect(() => {
+    const id = setInterval(() => setBright((b) => !b), 700);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div
+      style={{
+        width,
+        height,
+        borderRadius: radius,
+        background: bright ? "#F3F4F6" : "#E5E7EB",
+        transition: "background 0.7s ease",
+      }}
+    />
+  );
+}
+
+function LoadingDots({ color = "#737373" }: { color?: string }) {
+  const [n, setN] = useState(1);
+  useEffect(() => {
+    const id = setInterval(() => setN((x) => (x % 3) + 1), 380);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span style={{ color, fontWeight: 700, letterSpacing: 1 }}>
+      {".".repeat(n)}
+    </span>
+  );
+}
+
+function AgentActivityFooter({
+  isRunning,
+  label,
+}: {
+  isRunning: boolean;
+  label: string;
+}) {
+  return (
+    <div style={{ padding: "22px 24px 0" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 14px",
+          borderRadius: 12,
+          background: "#F5F5F5",
+          border: "1px solid #EAEAEA",
+          fontSize: 12,
+          color: "#525252",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: isRunning ? "#16A34A" : "#A3A3A3",
+            boxShadow: isRunning ? "0 0 0 0 rgba(22,163,74,0.5)" : undefined,
+          }}
+        />
+        <span>
+          {isRunning ? label : "Waiting for agent response…"}
+          {isRunning && <LoadingDots color="#525252" />}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 // ── Shared chrome ─────────────────────────────────────────────────────────
