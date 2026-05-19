@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -312,32 +313,53 @@ export function FoodDiscoveryCanvas() {
     }
   }, [agent, pending, state]);
 
-  // Derived stack + exit queue for the slide animation.
-  const visibleStack = deriveStack(state, pending);
+  // Derived stack + exit set for the slide animation. Memoized so the effect
+  // below only fires when state/pending actually change the stack.
+  const visibleStack = useMemo(
+    () => deriveStack(state, pending),
+    [state, pending],
+  );
   const prevStackRef = useRef<ScreenLevel[]>(visibleStack);
   const [exiting, setExiting] = useState<Set<ScreenLevel>>(() => new Set());
 
+  // Reconcile the exit set every time the stack shape changes:
+  //   - Levels that just left the stack get added (so the frame stays mounted
+  //     and animates out).
+  //   - Levels that were exiting but are back in the stack get removed (so the
+  //     frame slides back in instead of remaining stuck at translateX(100%)).
+  // The exit set is *not* cleared on a timer — ScreenFrame fires
+  // `onExitComplete` from its `transitionend` event instead, which handles
+  // pop-then-push correctly because the redirected slide-back-in transition
+  // simply doesn't fire the exit-complete callback.
   useEffect(() => {
-    const removed = prevStackRef.current.filter(
-      (l) => !visibleStack.includes(l),
-    );
+    const prev = prevStackRef.current;
+    const removed = prev.filter((l) => !visibleStack.includes(l));
     prevStackRef.current = visibleStack;
-    if (removed.length === 0) return;
 
-    setExiting((prev) => {
-      const next = new Set(prev);
-      removed.forEach((l) => next.add(l));
+    setExiting((cur) => {
+      const next = new Set(cur);
+      let changed = false;
+      for (const l of visibleStack) {
+        if (next.delete(l)) changed = true;
+      }
+      for (const l of removed) {
+        if (!next.has(l)) {
+          next.add(l);
+          changed = true;
+        }
+      }
+      return changed ? next : cur;
+    });
+  }, [visibleStack]);
+
+  const clearExit = useCallback((level: ScreenLevel) => {
+    setExiting((cur) => {
+      if (!cur.has(level)) return cur;
+      const next = new Set(cur);
+      next.delete(level);
       return next;
     });
-    const t = setTimeout(() => {
-      setExiting((prev) => {
-        const next = new Set(prev);
-        removed.forEach((l) => next.delete(l));
-        return next;
-      });
-    }, FRAME_TRANSITION_MS + 30);
-    return () => clearTimeout(t);
-  }, [visibleStack]);
+  }, []);
 
   const depthOf = (level: ScreenLevel): number => {
     const idx = visibleStack.indexOf(level);
@@ -456,6 +478,7 @@ export function FoodDiscoveryCanvas() {
           animatesIn
           exiting={exiting.has("interpretation")}
           depth={depthOf("interpretation")}
+          onExitComplete={() => clearExit("interpretation")}
         >
           {interpretationChild ?? lastInterpretationChildRef.current}
         </ScreenFrame>
@@ -466,6 +489,7 @@ export function FoodDiscoveryCanvas() {
           animatesIn
           exiting={exiting.has("results")}
           depth={depthOf("results")}
+          onExitComplete={() => clearExit("results")}
         >
           {resultsChild ?? lastResultsChildRef.current}
         </ScreenFrame>
@@ -480,16 +504,24 @@ function ScreenFrame({
   exiting,
   depth,
   children,
+  onExitComplete,
 }: {
   animatesIn: boolean;
   exiting: boolean;
   depth: number;
   children: ReactNode;
+  onExitComplete?: () => void;
 }) {
   // `entered` flips to true on the frame *after* mount so the CSS transition
   // animates from translateX(100%) to translateX(0). Frames that don't animate
   // in (e.g. home on first mount) start entered.
   const [entered, setEntered] = useState(!animatesIn);
+
+  // Mirror the latest `exiting` value into a ref so the transitionend handler
+  // sees the up-to-date value (and doesn't fire onExitComplete after a
+  // mid-flight slide-back-in).
+  const exitingRef = useRef(exiting);
+  exitingRef.current = exiting;
 
   useLayoutEffect(() => {
     if (animatesIn) {
@@ -500,9 +532,7 @@ function ScreenFrame({
   }, []);
 
   let transform: string;
-  if (exiting) {
-    transform = "translateX(100%)";
-  } else if (!entered) {
+  if (exiting || !entered) {
     transform = "translateX(100%)";
   } else if (depth === 0) {
     transform = "translateX(0)";
@@ -512,6 +542,11 @@ function ScreenFrame({
 
   return (
     <div
+      onTransitionEnd={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.propertyName !== "transform") return;
+        if (exitingRef.current) onExitComplete?.();
+      }}
       style={{
         position: "absolute",
         inset: 0,
