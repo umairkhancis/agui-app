@@ -313,44 +313,51 @@ export function FoodDiscoveryCanvas() {
     }
   }, [agent, pending, state]);
 
-  // Derived stack + exit set for the slide animation. Memoized so the effect
-  // below only fires when state/pending actually change the stack.
+  // Derived stack + exit set for the slide animation. Memoized so subsequent
+  // renders with the same state/pending see a stable reference.
   const visibleStack = useMemo(
     () => deriveStack(state, pending),
     [state, pending],
   );
-  const prevStackRef = useRef<ScreenLevel[]>(visibleStack);
+
+  // Reconcile the exit set *during* render — not in useEffect — so the frame
+  // never unmounts between "level leaves visibleStack" and "level enters
+  // exiting". Without this, the conditional render `{showsInterpretation && …}`
+  // briefly evaluates to false, React tears the frame down, and when it
+  // remounts on the next render (with exiting=true) it spawns directly at
+  // translateX(100%) with no transition to fire. transitionend never fires,
+  // so the frame is stuck off-screen.
+  //
+  // The documented React pattern for storing previous-render info is a
+  // `setState`-during-render guarded by an equality check on the input.
+  // After the first render in which visibleStack changes, the setState calls
+  // schedule a re-render whose `trackedStack === visibleStack`, so the guard
+  // fails and nothing further fires.
+  const [trackedStack, setTrackedStack] = useState<ScreenLevel[]>(visibleStack);
   const [exiting, setExiting] = useState<Set<ScreenLevel>>(() => new Set());
 
-  // Reconcile the exit set every time the stack shape changes:
-  //   - Levels that just left the stack get added (so the frame stays mounted
-  //     and animates out).
-  //   - Levels that were exiting but are back in the stack get removed (so the
-  //     frame slides back in instead of remaining stuck at translateX(100%)).
-  // The exit set is *not* cleared on a timer — ScreenFrame fires
-  // `onExitComplete` from its `transitionend` event instead, which handles
-  // pop-then-push correctly because the redirected slide-back-in transition
-  // simply doesn't fire the exit-complete callback.
-  useEffect(() => {
-    const prev = prevStackRef.current;
-    const removed = prev.filter((l) => !visibleStack.includes(l));
-    prevStackRef.current = visibleStack;
+  if (visibleStack !== trackedStack) {
+    setTrackedStack(visibleStack);
 
-    setExiting((cur) => {
-      const next = new Set(cur);
+    const removed = trackedStack.filter((l) => !visibleStack.includes(l));
+    setExiting((prev) => {
+      const next = new Set(prev);
       let changed = false;
+      // Re-added levels: drop from the exit set so they slide back in.
       for (const l of visibleStack) {
         if (next.delete(l)) changed = true;
       }
+      // Newly removed levels: mark exiting so the frame stays mounted and
+      // animates from translateX(0) → translateX(100%).
       for (const l of removed) {
         if (!next.has(l)) {
           next.add(l);
           changed = true;
         }
       }
-      return changed ? next : cur;
+      return changed ? next : prev;
     });
-  }, [visibleStack]);
+  }
 
   const clearExit = useCallback((level: ScreenLevel) => {
     setExiting((cur) => {
