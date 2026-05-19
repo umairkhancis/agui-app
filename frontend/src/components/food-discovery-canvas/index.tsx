@@ -1,7 +1,14 @@
 "use client";
 
 import { useAgent } from "@copilotkit/react-core/v2";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 // ── Types (mirror backend TypedDicts in agent/src/food_discovery.py) ──────
 interface Badge {
@@ -192,6 +199,27 @@ type PendingTransition =
       selectedAnswer: string;
     };
 
+type ScreenLevel = "home" | "interpretation" | "results";
+
+const FRAME_TRANSITION_MS = 300;
+
+function deriveStack(
+  state: FoodDiscoveryState | null | undefined,
+  pending: PendingTransition | null,
+): ScreenLevel[] {
+  const stack: ScreenLevel[] = ["home"];
+  const hasInterpretation =
+    pending?.toScreen === "aiInterpretation" ||
+    state?.screen === "aiInterpretation" ||
+    pending?.toScreen === "results" ||
+    state?.screen === "results";
+  if (hasInterpretation) stack.push("interpretation");
+  const hasResults =
+    pending?.toScreen === "results" || state?.screen === "results";
+  if (hasResults) stack.push("results");
+  return stack;
+}
+
 // ── Top-level component ───────────────────────────────────────────────────
 export function FoodDiscoveryCanvas() {
   const { agent } = useAgent();
@@ -257,69 +285,251 @@ export function FoodDiscoveryCanvas() {
     [sendMessage],
   );
 
-  const goHome = useCallback(() => {
-    setPending(null);
-    sendMessage("Take me back to the food discovery home screen.");
-  }, [sendMessage]);
+  // One-level pop: results → interpretation, interpretation → home.
+  // Driven by frontend setState so it's snappy and doesn't burn an LLM hop.
+  const popOne = useCallback(() => {
+    if (pending) {
+      setPending(null);
+      return;
+    }
+    if (state?.screen === "results") {
+      (agent as unknown as { setState: (s: object) => void }).setState({
+        foodDiscovery: {
+          ...state,
+          screen: "aiInterpretation",
+          selectedAnswer: null,
+          context: null,
+          results: [],
+        },
+      });
+      return;
+    }
+    if (state?.screen === "aiInterpretation") {
+      (agent as unknown as { setState: (s: object) => void }).setState({
+        foodDiscovery: null,
+      });
+      return;
+    }
+  }, [agent, pending, state]);
 
-  if (pending?.toScreen === "aiInterpretation") {
-    return (
-      <InterpretationLoadingView
-        typingText={pending.typingText}
-        searchText={pending.searchText}
-        isRunning={isRunning}
-        onBack={goHome}
-      />
+  // Derived stack + exit queue for the slide animation.
+  const visibleStack = deriveStack(state, pending);
+  const prevStackRef = useRef<ScreenLevel[]>(visibleStack);
+  const [exiting, setExiting] = useState<Set<ScreenLevel>>(() => new Set());
+
+  useEffect(() => {
+    const removed = prevStackRef.current.filter(
+      (l) => !visibleStack.includes(l),
     );
-  }
-  if (pending?.toScreen === "results") {
-    return (
-      <ResultsLoadingView
-        selectedAnswer={pending.selectedAnswer}
-        isRunning={isRunning}
-        onBack={goHome}
-      />
-    );
-  }
-  if (state?.screen === "results") {
-    return (
-      <ResultsView state={state} onBack={goHome} onPickAnswer={() => undefined} />
-    );
-  }
-  if (state?.screen === "aiInterpretation") {
-    return (
+    prevStackRef.current = visibleStack;
+    if (removed.length === 0) return;
+
+    setExiting((prev) => {
+      const next = new Set(prev);
+      removed.forEach((l) => next.add(l));
+      return next;
+    });
+    const t = setTimeout(() => {
+      setExiting((prev) => {
+        const next = new Set(prev);
+        removed.forEach((l) => next.delete(l));
+        return next;
+      });
+    }, FRAME_TRANSITION_MS + 30);
+    return () => clearTimeout(t);
+  }, [visibleStack]);
+
+  const depthOf = (level: ScreenLevel): number => {
+    const idx = visibleStack.indexOf(level);
+    if (idx === -1) return 0; // exiting frame — treat as if leaving from top
+    return visibleStack.length - 1 - idx;
+  };
+
+  // Live content for each frame (when in stack).
+  const interpretationStateData =
+    state && (state.screen === "aiInterpretation" || state.screen === "results")
+      ? state
+      : null;
+  const interpretationPendingData =
+    pending?.toScreen === "aiInterpretation" ? pending : null;
+  const resultsStateData = state?.screen === "results" ? state : null;
+  const resultsPendingData =
+    pending?.toScreen === "results" ? pending : null;
+
+  // Cache the last rendered child for each frame so it stays visible through
+  // its exit animation even after state/pending have cleared.
+  const lastInterpretationChildRef = useRef<ReactNode>(null);
+  const lastResultsChildRef = useRef<ReactNode>(null);
+
+  let interpretationChild: ReactNode = null;
+  if (interpretationStateData) {
+    interpretationChild = (
       <InterpretationView
-        state={state}
-        onBack={goHome}
+        state={interpretationStateData}
+        onBack={popOne}
         onPickAnswer={(answer) =>
           startResultsLoading(
-            state.intent,
+            interpretationStateData.intent,
             answer.text,
-            `I'll go with "${answer.text}" for the ${state.intent} mood.`,
+            `I'll go with "${answer.text}" for the ${interpretationStateData.intent} mood.`,
           )
         }
       />
     );
+  } else if (interpretationPendingData) {
+    interpretationChild = (
+      <InterpretationLoadingView
+        typingText={interpretationPendingData.typingText}
+        searchText={interpretationPendingData.searchText}
+        isRunning={isRunning}
+        onBack={popOne}
+      />
+    );
   }
+  if (interpretationChild) {
+    lastInterpretationChildRef.current = interpretationChild;
+  }
+
+  let resultsChild: ReactNode = null;
+  if (resultsPendingData && !resultsStateData) {
+    resultsChild = (
+      <ResultsLoadingView
+        selectedAnswer={resultsPendingData.selectedAnswer}
+        isRunning={isRunning}
+        onBack={popOne}
+      />
+    );
+  } else if (resultsStateData) {
+    resultsChild = (
+      <ResultsView
+        state={resultsStateData}
+        onBack={popOne}
+        onPickAnswer={() => undefined}
+      />
+    );
+  }
+  if (resultsChild) {
+    lastResultsChildRef.current = resultsChild;
+  }
+
+  const showsInterpretation =
+    visibleStack.includes("interpretation") || exiting.has("interpretation");
+  const showsResults =
+    visibleStack.includes("results") || exiting.has("results");
+
   return (
-    <HomeView
-      onPickChip={(chip) =>
-        startInterpretationLoading(
-          chip.intent,
-          chip.typingText,
-          chip.label.replace(/^[^A-Za-z]+/, "").trim(),
-          chip.message,
-        )
-      }
-      onPickCard={(card) =>
-        startInterpretationLoading(
-          card.intent,
-          card.typingText,
-          card.label,
-          card.message,
-        )
-      }
-    />
+    <div
+      style={{
+        position: "relative",
+        height: "100%",
+        overflow: "hidden",
+        background: "white",
+      }}
+    >
+      <ScreenFrame
+        animatesIn={false}
+        exiting={false}
+        depth={depthOf("home")}
+      >
+        <HomeView
+          onPickChip={(chip) =>
+            startInterpretationLoading(
+              chip.intent,
+              chip.typingText,
+              chip.label.replace(/^[^A-Za-z]+/, "").trim(),
+              chip.message,
+            )
+          }
+          onPickCard={(card) =>
+            startInterpretationLoading(
+              card.intent,
+              card.typingText,
+              card.label,
+              card.message,
+            )
+          }
+        />
+      </ScreenFrame>
+
+      {showsInterpretation && (
+        <ScreenFrame
+          animatesIn
+          exiting={exiting.has("interpretation")}
+          depth={depthOf("interpretation")}
+        >
+          {interpretationChild ?? lastInterpretationChildRef.current}
+        </ScreenFrame>
+      )}
+
+      {showsResults && (
+        <ScreenFrame
+          animatesIn
+          exiting={exiting.has("results")}
+          depth={depthOf("results")}
+        >
+          {resultsChild ?? lastResultsChildRef.current}
+        </ScreenFrame>
+      )}
+    </div>
+  );
+}
+
+// ── ScreenFrame: positions + animates a single stack layer ────────────────
+function ScreenFrame({
+  animatesIn,
+  exiting,
+  depth,
+  children,
+}: {
+  animatesIn: boolean;
+  exiting: boolean;
+  depth: number;
+  children: ReactNode;
+}) {
+  // `entered` flips to true on the frame *after* mount so the CSS transition
+  // animates from translateX(100%) to translateX(0). Frames that don't animate
+  // in (e.g. home on first mount) start entered.
+  const [entered, setEntered] = useState(!animatesIn);
+
+  useLayoutEffect(() => {
+    if (animatesIn) {
+      const id = requestAnimationFrame(() => setEntered(true));
+      return () => cancelAnimationFrame(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  let transform: string;
+  if (exiting) {
+    transform = "translateX(100%)";
+  } else if (!entered) {
+    transform = "translateX(100%)";
+  } else if (depth === 0) {
+    transform = "translateX(0)";
+  } else {
+    transform = "translateX(-22%)";
+  }
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        transform,
+        transition: `transform ${FRAME_TRANSITION_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`,
+        pointerEvents: depth === 0 && !exiting ? "auto" : "none",
+        background: "white",
+        zIndex: 10 - depth,
+        boxShadow:
+          depth === 0 && entered && !exiting
+            ? "-8px 0 28px rgba(0,0,0,0.08)"
+            : undefined,
+        filter: depth > 0 && !exiting ? "brightness(0.96)" : undefined,
+        willChange: "transform",
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
