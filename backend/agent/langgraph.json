@@ -4,7 +4,8 @@
   "dependencies": ["."],
   "package_manager": "uv",
   "graphs": {
-    "sample_agent": "./main.py:graph"
+    "food_discovery_agent": "./src/food_discovery/agent.py:graph",
+    "demo_agent": "./src/demo/agent.py:graph"
   },
   "env": "../.env"
 }

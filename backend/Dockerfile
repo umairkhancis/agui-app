@@ -8,9 +8,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 WORKDIR /app
 
 # Copy agent source and dependency manifests.
+# Each agent (demo, food_discovery) lives entirely under agent/src/<name>/;
+# serve.py picks which one to expose via an import-swap at build time.
 COPY agent/pyproject.toml agent/uv.lock ./
 COPY agent/src/ ./src/
-COPY agent/main.py ./
 COPY agent/serve.py ./
 
 # Install dependencies declared in pyproject.toml.

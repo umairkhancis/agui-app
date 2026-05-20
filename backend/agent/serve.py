@@ -1,7 +1,14 @@
 """
-FastAPI server that exposes the LangGraph agent via the AG-UI protocol.
+FastAPI server that exposes ONE LangGraph agent via the AG-UI protocol.
 
-Run locally:  uv run python serve.py
+Two agents are available in this repo:
+  - src.food_discovery.agent   → the Talabat food discovery agent (default)
+  - src.demo.agent             → the CopilotKit /demo tools-showcase agent
+
+Swap which one is served by changing the import below at build/deploy time.
+The two agents are fully isolated; they share no state schema and no tools.
+
+Run locally:   uv run python serve.py
 Run in Docker: CMD ["uv", "run", "python", "serve.py"]
 """
 
@@ -12,10 +19,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.checkpoint.memory import MemorySaver
 
-from main import graph
-
 from copilotkit import LangGraphAGUIAgent
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
+
+# ─── Pick which agent to serve ─────────────────────────────────────────────
+# Comment one block, uncomment the other.
+
+from src.food_discovery.agent import graph
+AGENT_NAME = "food_discovery_agent"
+AGENT_DESCRIPTION = "Talabat food discovery agent — drives the canvas via tools."
+
+# from src.demo.agent import graph
+# AGENT_NAME = "demo_agent"
+# AGENT_DESCRIPTION = "CopilotKit tools-showcase agent (flights, todos, a2ui, charts)."
+
+# ─── Server plumbing ───────────────────────────────────────────────────────
 
 # LangGraph Platform normally injects a checkpointer. Add one for standalone serving.
 if not hasattr(graph, "checkpointer") or graph.checkpointer is None:
@@ -34,14 +52,14 @@ app.add_middleware(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "agent": AGENT_NAME}
 
 
 add_langgraph_fastapi_endpoint(
     app=app,
     agent=LangGraphAGUIAgent(
-        name="sample_agent",
-        description="LangGraph Python starter agent",
+        name=AGENT_NAME,
+        description=AGENT_DESCRIPTION,
         graph=graph,
     ),
     path="/",

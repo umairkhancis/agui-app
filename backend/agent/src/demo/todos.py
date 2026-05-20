@@ -1,11 +1,8 @@
-from langchain.agents import AgentState as BaseAgentState
 from langchain.tools import ToolRuntime, tool
 from langchain.messages import ToolMessage
 from langgraph.types import Command
 from typing import TypedDict, Literal
 import uuid
-
-from src.food_discovery import FoodDiscoveryState
 
 
 class Todo(TypedDict):
@@ -14,11 +11,6 @@ class Todo(TypedDict):
     description: str
     emoji: str
     status: Literal["pending", "completed"]
-
-
-class AgentState(BaseAgentState):
-    todos: list[Todo]
-    foodDiscovery: FoodDiscoveryState | None
 
 
 @tool

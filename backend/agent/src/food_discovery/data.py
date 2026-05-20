@@ -1,115 +1,27 @@
-from typing import Literal, TypedDict, cast
+# Pre-canned intent + results data for the food discovery agent.
+#
+# Pure data module — no LangGraph, no tools, no LLM. Lifted verbatim from
+# docs/food-discovery.html so the demo behaves identically to the prototype.
+# In a real Talabat backend this would come from a search service / catalog;
+# the JSON shape is what the agent's tools emit into state.
 
-from langchain.messages import ToolMessage
-from langchain.tools import ToolRuntime, tool
-from langgraph.types import Command
+from typing import TypedDict
 
-
-# ─── Primitive types ────────────────────────────────────────────────────────
-
-IntentKey = Literal[
-    "healthy", "comfort", "light", "unsure", "quick", "usual", "explore"
-]
-
-
-class Badge(TypedDict):
-    text: str
-    color: str
-    bg: str
-
-
-class Answer(TypedDict):
-    emoji: str
-    text: str
-    sub: str
-
-
-class IntentContext(TypedDict):
-    icon: str
-    title: str
-    why: str
-
-
-# ─── FoodCard: discriminated union by `type` ───────────────────────────────
-
-
-class CardBase(TypedDict):
-    emoji: str
-    bg: str
-    badge: Badge
-    name: str
-    restaurant: str
-    rating: str
-    time: str
-    price: str
-
-
-class HealthyFoodCard(CardBase):
-    type: Literal["healthy"]
-    calories: int
-    protein: str
-    carbs: str
-    fat: str
-    tags: list[str]
-
-
-class ComfortFoodCard(CardBase):
-    type: Literal["comfort"]
-    descriptors: list[str]
-    socialProof: str
-    feel: str
-
-
-class LightFoodCard(CardBase):
-    type: Literal["light"]
-    calories: int
-    indicators: list[str]
-    feel: str
-
-
-class UnsureFoodCard(CardBase):
-    type: Literal["unsure"]
-    descriptors: list[str]
-    why: str
-    moodProof: str
-
-
-FoodCard = HealthyFoodCard | ComfortFoodCard | LightFoodCard | UnsureFoodCard
-
-
-# ─── FoodDiscoveryState: discriminated union by `screen` ───────────────────
-
-
-class InterpretationData(TypedDict):
-    """Fields shared by both the interpretation and results screens."""
-
-    intent: IntentKey
-    typingText: str
-    searchText: str
-    interpretation: str
-    question: str
-    answers: list[Answer]
-    ctx: IntentContext
-
-
-class InterpretationScreenState(InterpretationData):
-    screen: Literal["aiInterpretation"]
-
-
-class ResultsScreenState(InterpretationData):
-    screen: Literal["results"]
-    selectedAnswer: str
-    results: list[FoodCard]
-
-
-FoodDiscoveryState = InterpretationScreenState | ResultsScreenState
-
-
-# ─── Pre-canned intent + results data ──────────────────────────────────────
+from src.food_discovery.types import (
+    Answer,
+    Badge,
+    ComfortFoodCard,
+    FoodCard,
+    HealthyFoodCard,
+    IntentContext,
+    IntentKey,
+    LightFoodCard,
+    UnsureFoodCard,
+)
 
 
 class IntentEntry(TypedDict):
-    """Lookup-table row. The tool constructs an InterpretationScreenState from this."""
+    """Lookup-table row. Tools construct an InterpretationScreenState from this."""
 
     typingText: str
     searchText: str
@@ -439,139 +351,3 @@ RESULTS_DATA: dict[str, list[FoodCard]] = {
 
 
 VALID_INTENTS: list[IntentKey] = list(INTENTS_DATA.keys())
-
-
-# ─── Helpers ────────────────────────────────────────────────────────────────
-
-
-def _interpretation_data(intent: IntentKey, entry: IntentEntry) -> InterpretationData:
-    return InterpretationData(
-        intent=intent,
-        typingText=entry["typingText"],
-        searchText=entry["searchText"],
-        interpretation=entry["interpretation"],
-        question=entry["question"],
-        answers=entry["answers"],
-        ctx=entry["ctx"],
-    )
-
-
-def _validate_intent(intent: str) -> IntentKey | None:
-    if intent in INTENTS_DATA:
-        return cast(IntentKey, intent)
-    return None
-
-
-# ─── Tools ─────────────────────────────────────────────────────────────────
-
-
-@tool
-def start_food_discovery(intent: str, runtime: ToolRuntime) -> Command:
-    """
-    Show the AI interpretation screen for a food mood. Call this when the user
-    expresses a food mood (e.g. clicks 'Eating healthy', says 'I want comfort
-    food', asks for something light).
-
-    intent must be one of: healthy, comfort, light, unsure, quick, usual, explore.
-    """
-    valid = _validate_intent(intent)
-    if valid is None:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        content=f"Unknown intent '{intent}'. Valid intents: {', '.join(VALID_INTENTS)}.",
-                        tool_call_id=runtime.tool_call_id,
-                    )
-                ]
-            }
-        )
-
-    entry = INTENTS_DATA[valid]
-    new_state: InterpretationScreenState = {
-        **_interpretation_data(valid, entry),
-        "screen": "aiInterpretation",
-    }
-
-    return Command(
-        update={
-            "foodDiscovery": new_state,
-            "messages": [
-                ToolMessage(
-                    content=f"Showing AI interpretation for '{valid}'. Waiting for the user to pick a sub-option.",
-                    tool_call_id=runtime.tool_call_id,
-                )
-            ],
-        }
-    )
-
-
-@tool
-def show_food_results(intent: str, sub_option: str, runtime: ToolRuntime) -> Command:
-    """
-    Show the food results screen. Call this when the user picks a sub-option
-    from the AI interpretation screen (e.g. 'Post-workout', 'Cheesy & indulgent').
-
-    intent must be one of: healthy, comfort, light, unsure, quick, usual, explore.
-    sub_option is the label of the chosen answer (e.g. 'Post-workout').
-    """
-    valid = _validate_intent(intent)
-    if valid is None:
-        return Command(
-            update={
-                "messages": [
-                    ToolMessage(
-                        content=f"Unknown intent '{intent}'. Valid intents: {', '.join(VALID_INTENTS)}.",
-                        tool_call_id=runtime.tool_call_id,
-                    )
-                ]
-            }
-        )
-
-    entry = INTENTS_DATA[valid]
-    results = RESULTS_DATA.get(entry["resultsKey"], RESULTS_DATA["comfort"])
-
-    new_state: ResultsScreenState = {
-        **_interpretation_data(valid, entry),
-        "screen": "results",
-        "selectedAnswer": sub_option,
-        "results": results,
-    }
-
-    return Command(
-        update={
-            "foodDiscovery": new_state,
-            "messages": [
-                ToolMessage(
-                    content=f"Showing {len(results)} {valid} food cards for '{sub_option}'.",
-                    tool_call_id=runtime.tool_call_id,
-                )
-            ],
-        }
-    )
-
-
-@tool
-def reset_food_discovery(runtime: ToolRuntime) -> Command:
-    """
-    Return to the food discovery home screen (the mood chips and explore cards).
-    Call this when the user wants to go back, restart, or pick a different mood.
-    """
-    return Command(
-        update={
-            "foodDiscovery": None,
-            "messages": [
-                ToolMessage(
-                    content="Returned to the food discovery home screen.",
-                    tool_call_id=runtime.tool_call_id,
-                )
-            ],
-        }
-    )
-
-
-food_discovery_tools = [
-    start_food_discovery,
-    show_food_results,
-    reset_food_discovery,
-]
