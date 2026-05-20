@@ -1,6 +1,12 @@
 // The one and only place where this feature touches the untyped CopilotKit
 // `useAgent()` surface. Everything downstream of this hook is fully typed
 // against `AgentState` and `FoodDiscoveryState`.
+//
+// CONTRACT: this hook deliberately does NOT expose a `setFoodDiscovery`
+// setter. Every food-discovery state transition (forward AND back) must go
+// through an agent tool via `sendMessage()`. That keeps the agent's message
+// history a complete log of the user's journey. If you find yourself wanting
+// to mutate state directly, add a tool instead.
 
 import { useAgent } from "@copilotkit/react-core/v2";
 import { useCallback } from "react";
@@ -10,7 +16,6 @@ import type { AgentState, FoodDiscoveryState } from "./types";
 interface TypedAgent {
   state?: AgentState;
   isRunning: boolean;
-  setState: (partial: Partial<AgentState>) => void;
   addMessage: (m: { role: "user"; id: string; content: string }) => void;
   runAgent: () => void;
 }
@@ -18,7 +23,6 @@ interface TypedAgent {
 export interface UseFoodDiscoveryAgentResult {
   state: FoodDiscoveryState | null;
   isRunning: boolean;
-  setFoodDiscovery: (next: FoodDiscoveryState | null) => void;
   sendMessage: (text: string) => void;
 }
 
@@ -27,13 +31,6 @@ export function useFoodDiscoveryAgent(): UseFoodDiscoveryAgentResult {
   // controlled assertion so that everything we export below is type-safe.
   const { agent: rawAgent } = useAgent();
   const agent = rawAgent as unknown as TypedAgent;
-
-  const setFoodDiscovery = useCallback(
-    (next: FoodDiscoveryState | null) => {
-      agent.setState({ foodDiscovery: next });
-    },
-    [agent],
-  );
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -50,7 +47,6 @@ export function useFoodDiscoveryAgent(): UseFoodDiscoveryAgentResult {
   return {
     state: agent.state?.foodDiscovery ?? null,
     isRunning: agent.isRunning,
-    setFoodDiscovery,
     sendMessage,
   };
 }

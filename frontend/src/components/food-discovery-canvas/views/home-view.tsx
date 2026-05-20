@@ -13,8 +13,6 @@ export function HomeView({ onPickMood }: HomeViewProps) {
   const pick = (item: ChipItem | CardItem) => {
     onPickMood({
       intent: item.intent,
-      typingText: item.typingText,
-      searchText: item.searchText,
       message: item.message,
     });
   };

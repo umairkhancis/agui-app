@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { ScreenFrame } from "./components/screen-frame";
+import { ErrorView } from "./views/error-view";
 import { HomeView } from "./views/home-view";
 import { InterpretationLoadingView } from "./views/interpretation-loading-view";
 import { InterpretationView } from "./views/interpretation-view";
@@ -24,13 +25,19 @@ import type {
   PendingTransition,
 } from "./types";
 
-type ScreenLevel = "home" | "interpretation" | "results";
+type ScreenLevel = "home" | "interpretation" | "results" | "error";
 
 function deriveStack(
   state: FoodDiscoveryState | null,
   pending: PendingTransition | null,
 ): ScreenLevel[] {
   const stack: ScreenLevel[] = ["home"];
+  // Error is a top-level branch: when present it replaces the normal stack
+  // depth. Pending transitions don't apply — errors surface unexpectedly.
+  if (state?.screen === "error") {
+    stack.push("error");
+    return stack;
+  }
   const hasInterpretation =
     pending?.toScreen === "aiInterpretation" ||
     state?.screen === "aiInterpretation" ||
@@ -50,6 +57,7 @@ export interface FoodDiscoveryCanvasViewProps {
   onPickMood: (pick: MoodPickPayload) => void;
   onPickAnswer: (answer: Answer) => void;
   onPopOne: () => void;
+  onDismissError: () => void;
 }
 
 export function FoodDiscoveryCanvasView({
@@ -59,6 +67,7 @@ export function FoodDiscoveryCanvasView({
   onPickMood,
   onPickAnswer,
   onPopOne,
+  onDismissError,
 }: FoodDiscoveryCanvasViewProps) {
   const visibleStack = useMemo(
     () => deriveStack(state, pending),
@@ -123,6 +132,15 @@ export function FoodDiscoveryCanvasView({
   // slide-out animation, even after the agent state has cleared.
   const lastInterpretationChildRef = useRef<ReactNode>(null);
   const lastResultsChildRef = useRef<ReactNode>(null);
+  const lastErrorChildRef = useRef<ReactNode>(null);
+
+  const errorState = state?.screen === "error" ? state : null;
+  let errorChild: ReactNode = null;
+  if (errorState) {
+    errorChild = <ErrorView state={errorState} onDismiss={onDismissError} />;
+    lastErrorChildRef.current = errorChild;
+  }
+  const showsError = visibleStack.includes("error") || exiting.has("error");
 
   let interpretationChild: ReactNode = null;
   if (interpretationState) {
@@ -136,8 +154,6 @@ export function FoodDiscoveryCanvasView({
   } else if (interpretationPending) {
     interpretationChild = (
       <InterpretationLoadingView
-        typingText={interpretationPending.typingText}
-        searchText={interpretationPending.searchText}
         isRunning={isRunning}
         onBack={onPopOne}
       />
@@ -200,6 +216,17 @@ export function FoodDiscoveryCanvasView({
           onExitComplete={() => clearExit("results")}
         >
           {resultsChild ?? lastResultsChildRef.current}
+        </ScreenFrame>
+      )}
+
+      {showsError && (
+        <ScreenFrame
+          animatesIn
+          exiting={exiting.has("error")}
+          depth={depthOf("error")}
+          onExitComplete={() => clearExit("error")}
+        >
+          {errorChild ?? lastErrorChildRef.current}
         </ScreenFrame>
       )}
     </div>

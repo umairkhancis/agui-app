@@ -102,9 +102,18 @@ export interface ResultsScreenState extends InterpretationData {
   results: FoodCard[];
 }
 
+// Surfaced when a food-discovery tool can't fulfil the request (unknown
+// intent, downstream lookup failure). First-class state — the canvas
+// renders a dedicated error view rather than silently freezing.
+export interface ErrorScreenState {
+  screen: "error";
+  message: string;
+}
+
 export type FoodDiscoveryState =
   | InterpretationScreenState
-  | ResultsScreenState;
+  | ResultsScreenState
+  | ErrorScreenState;
 
 // ─── Agent state envelope (what the agent owns) ────────────────────────────
 
@@ -115,13 +124,21 @@ export interface AgentState {
 }
 
 // ─── Frontend-only types (presenter contract) ──────────────────────────────
+//
+// IMPORTANT: these types carry NO intent semantics (no typingText, no
+// searchText, no interpretation text). Those fields live in INTENTS_DATA on
+// the backend and arrive on `state.foodDiscovery` once the agent's tool
+// resolves. The frontend is allowed to carry:
+//   - the `intent` key (so the agent knows which mood the user picked)
+//   - the user-facing `message` text (the actual user input — FE writes,
+//     doesn't predict)
+//   - purely visual fields (label, gradient, variant, emoji)
+// Anything else creates a second source of truth that has to stay in sync.
 
 export type PendingTransition =
   | {
       toScreen: "aiInterpretation";
       intent: IntentKey;
-      typingText: string;
-      searchText: string;
     }
   | {
       toScreen: "results";
@@ -131,8 +148,6 @@ export type PendingTransition =
 
 export interface MoodPickPayload {
   intent: IntentKey;
-  typingText: string;
-  searchText: string;
   message: string;
 }
 
@@ -148,8 +163,6 @@ export interface ChipItem {
   label: string;
   variant: ChipVariant;
   intent: IntentKey;
-  typingText: string;
-  searchText: string;
   message: string;
 }
 
@@ -159,7 +172,5 @@ export interface CardItem {
   label: string;
   gradient: string;
   intent: IntentKey;
-  typingText: string;
-  searchText: string;
   message: string;
 }

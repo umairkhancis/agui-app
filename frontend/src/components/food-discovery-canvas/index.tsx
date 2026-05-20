@@ -1,9 +1,16 @@
 "use client";
 
 // Container component. Owns the *agent* concerns (read shared state, send
-// messages, push direct state updates for back-navigation) and the *transient
-// UI* concern of the pending overlay. Everything else — including the screen
-// stack and animation — lives in the pure presenter.
+// messages that drive tool calls) and the *transient UI* concern of the
+// pending overlay. Everything else — including the screen stack and
+// animation — lives in the pure presenter.
+//
+// CONTRACT: every food-discovery state transition (forward AND back) goes
+// through an agent tool. The FE never calls `setFoodDiscovery(...)` directly
+// to mutate the user-facing screen — it always asks the agent to do it via
+// sendMessage(), so the agent's message history is a complete log of the
+// journey. Cost: each back press is one LLM round-trip slower than a direct
+// setState would be. Benefit: an explicit, debuggable contract.
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -12,10 +19,14 @@ import { useFoodDiscoveryAgent } from "./use-food-discovery-agent";
 import type {
   Answer,
   FoodDiscoveryState,
-  InterpretationScreenState,
   MoodPickPayload,
   PendingTransition,
 } from "./types";
+
+// The sentinel message we send to drive a back-navigation tool call. Kept
+// here so the prompt-side contract is visible in one place — the backend's
+// FOOD_DISCOVERY_SYSTEM_PROMPT maps this to pop_food_discovery_screen.
+const POP_BACK_MESSAGE = "Take me back to the previous screen.";
 
 function stateMatchesPending(
   state: FoodDiscoveryState | null,
@@ -35,8 +46,7 @@ function stateMatchesPending(
 }
 
 export function FoodDiscoveryCanvas() {
-  const { state, isRunning, setFoodDiscovery, sendMessage } =
-    useFoodDiscoveryAgent();
+  const { state, isRunning, sendMessage } = useFoodDiscoveryAgent();
   const [pending, setPending] = useState<PendingTransition | null>(null);
 
   // Clear the pending overlay once the agent's state catches up. If the run
@@ -59,8 +69,6 @@ export function FoodDiscoveryCanvas() {
       setPending({
         toScreen: "aiInterpretation",
         intent: pick.intent,
-        typingText: pick.typingText,
-        searchText: pick.searchText,
       });
       sendMessage(pick.message);
     },
@@ -85,33 +93,24 @@ export function FoodDiscoveryCanvas() {
   );
 
   const onPopOne = useCallback(() => {
-    // Cancel a pending loading overlay first (covers "user clicked back
-    // while the agent was still thinking").
+    // Cancel a pending loading overlay first — pure UI concern, no agent
+    // round-trip needed because nothing has actually changed in state yet.
     if (pending) {
       setPending(null);
       return;
     }
-    if (state?.screen === "results") {
-      // Down-shift to interpretation by constructing the variant explicitly.
-      // Spreading + overriding `screen` would also work but this is clearer.
-      const next: InterpretationScreenState = {
-        screen: "aiInterpretation",
-        intent: state.intent,
-        typingText: state.typingText,
-        searchText: state.searchText,
-        interpretation: state.interpretation,
-        question: state.question,
-        answers: state.answers,
-        ctx: state.ctx,
-      };
-      setFoodDiscovery(next);
-      return;
+    // For any real state ("aiInterpretation", "results", "error"), ask the
+    // agent to pop. The agent owns the transition; we just signal intent.
+    if (state) {
+      sendMessage(POP_BACK_MESSAGE);
     }
-    if (state?.screen === "aiInterpretation") {
-      setFoodDiscovery(null);
-      return;
-    }
-  }, [pending, state, setFoodDiscovery]);
+  }, [pending, state, sendMessage]);
+
+  const onDismissError = useCallback(() => {
+    // Same signal path as a back press from any other screen — the
+    // pop_food_discovery_screen tool handles errors by going home.
+    sendMessage(POP_BACK_MESSAGE);
+  }, [sendMessage]);
 
   return (
     <FoodDiscoveryCanvasView
@@ -121,6 +120,7 @@ export function FoodDiscoveryCanvas() {
       onPickMood={onPickMood}
       onPickAnswer={onPickAnswer}
       onPopOne={onPopOne}
+      onDismissError={onDismissError}
     />
   );
 }

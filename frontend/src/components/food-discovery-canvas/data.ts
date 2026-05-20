@@ -1,5 +1,14 @@
 // Static configuration data for the home screen. Lives outside the React
 // component tree so it isn't recreated on every render.
+//
+// Each entry carries ONLY frontend concerns:
+//   - id / label / variant / gradient / emoji  → purely visual
+//   - intent                                    → the key the agent will use
+//   - message                                   → the user text we'll send
+//
+// Intent semantics (typingText, searchText, interpretation, answers, ctx)
+// live on the backend in INTENTS_DATA. The FE never predicts those — they
+// arrive on `state.foodDiscovery` once the agent's tool resolves.
 
 import type { CardItem, ChipItem, ChipVariant } from "./types";
 
@@ -9,8 +18,6 @@ export const chips: ChipItem[] = [
     label: "✦ Not sure",
     variant: "unsure",
     intent: "unsure",
-    typingText: "Not really sure what I want…",
-    searchText: "Not sure",
     message: "I'm not sure what to eat today, help me decide!",
   },
   {
@@ -18,8 +25,6 @@ export const chips: ChipItem[] = [
     label: "🥗 Healthy",
     variant: "healthy",
     intent: "healthy",
-    typingText: "Eating healthy today",
-    searchText: "Healthy",
     message: "I'm in the mood for something healthy today.",
   },
   {
@@ -27,8 +32,6 @@ export const chips: ChipItem[] = [
     label: "🍜 Comfort food",
     variant: "comfort",
     intent: "comfort",
-    typingText: "Comfort food, something warm",
-    searchText: "Comfort food",
     message: "I want comfort food today.",
   },
   {
@@ -36,8 +39,6 @@ export const chips: ChipItem[] = [
     label: "🌿 Light",
     variant: "light",
     intent: "light",
-    typingText: "Something light, not too heavy",
-    searchText: "Light",
     message: "I'm looking for something light to eat.",
   },
   {
@@ -45,8 +46,6 @@ export const chips: ChipItem[] = [
     label: "⚡ Quick",
     variant: "default",
     intent: "quick",
-    typingText: "Fast, I need it now",
-    searchText: "Quick",
     message: "I need something quick to eat.",
   },
   {
@@ -54,8 +53,6 @@ export const chips: ChipItem[] = [
     label: "🔁 My usual",
     variant: "default",
     intent: "usual",
-    typingText: "The usual",
-    searchText: "My usual",
     message: "Show me my usual food choices.",
   },
 ];
@@ -67,8 +64,6 @@ export const cards: CardItem[] = [
     label: "Eating healthy",
     gradient: "linear-gradient(135deg,#D1FAE5,#A7F3D0)",
     intent: "healthy",
-    typingText: "Eating healthy today",
-    searchText: "Eating healthy",
     message: "Help me find healthy food options.",
   },
   {
@@ -77,8 +72,6 @@ export const cards: CardItem[] = [
     label: "Comfort food",
     gradient: "linear-gradient(135deg,#FEE2E2,#FECACA)",
     intent: "comfort",
-    typingText: "Comfort food, something warm",
-    searchText: "Comfort food",
     message: "I want comfort food today.",
   },
   {
@@ -87,8 +80,6 @@ export const cards: CardItem[] = [
     label: "Light & fresh",
     gradient: "linear-gradient(135deg,#DBEAFE,#BFDBFE)",
     intent: "light",
-    typingText: "Something light, not too heavy",
-    searchText: "Light & fresh",
     message: "I'm looking for something light and fresh.",
   },
   {
@@ -97,8 +88,6 @@ export const cards: CardItem[] = [
     label: "Surprise me",
     gradient: "linear-gradient(135deg,#EDE9FE,#DDD6FE)",
     intent: "explore",
-    typingText: "Exploring options…",
-    searchText: "Surprise me",
     message: "Surprise me — explore some options for me.",
   },
 ];

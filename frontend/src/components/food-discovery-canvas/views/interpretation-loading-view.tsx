@@ -1,5 +1,9 @@
 // Loading skeleton for the AI interpretation screen. Mirrors the layout of
 // InterpretationView so the slide-in animation lands on something familiar.
+//
+// Carries NO intent-specific text — those fields belong to the backend's
+// INTENTS_DATA and arrive on `state.foodDiscovery` once the tool resolves.
+// While loading, we show generic placeholder text + skeleton blocks.
 
 import { BackHeader } from "../components/back-header";
 import {
@@ -11,21 +15,17 @@ import {
 import { scrollPaneStyle, sectionLabelInline } from "../styles";
 
 export interface InterpretationLoadingViewProps {
-  typingText: string;
-  searchText: string;
   isRunning: boolean;
   onBack: () => void;
 }
 
 export function InterpretationLoadingView({
-  typingText,
-  searchText,
   isRunning,
   onBack,
 }: InterpretationLoadingViewProps) {
   return (
     <div style={scrollPaneStyle}>
-      <BackHeader onBack={onBack} aiSearchText={searchText} />
+      <BackHeader onBack={onBack} aiSearchText="Understanding your request…" />
 
       <div style={{ padding: "20px 24px 8px" }}>
         <div
@@ -40,15 +40,9 @@ export function InterpretationLoadingView({
         >
           You're looking for
         </div>
-        <div
-          style={{
-            fontSize: 30,
-            fontWeight: 800,
-            color: "#0A0A0A",
-            lineHeight: 1.2,
-          }}
-        >
-          {typingText}
+        <div style={{ display: "grid", gap: 10, marginTop: 4 }}>
+          <Skeleton width="78%" height={26} />
+          <Skeleton width="48%" height={26} />
         </div>
       </div>
 
