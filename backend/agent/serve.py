@@ -1,13 +1,15 @@
 """
 FastAPI server that exposes ONE LangGraph agent via the AG-UI protocol.
 
-Two agents are available in this repo:
-  - src.food_discovery.agent   → the Talabat food discovery agent
+Three agents are available in this repo:
   - src.demo.agent             → the CopilotKit /demo tools-showcase agent (default)
+  - src.food_discovery.agent   → the Talabat food discovery agent
+  - src.minimal.agent          → bare-bones single-tool agent for observing raw AG-UI events
 
 Select which one is served by setting AGENT in your .env file:
   AGENT=demo            → src.demo.agent (default)
   AGENT=food_discovery  → src.food_discovery.agent
+  AGENT=minimal         → src.minimal.agent
 
 Run locally:   uv run python serve.py
 Run in Docker: CMD ["uv", "run", "python", "serve.py"]
@@ -36,6 +38,11 @@ _AGENTS = {
         "module": "src.food_discovery.agent",
         "name": "food_discovery_agent",
         "description": "Talabat food discovery agent — drives the canvas via tools.",
+    },
+    "minimal": {
+        "module": "src.minimal.agent",
+        "name": "minimal_agent",
+        "description": "Bare-bones agent with a single add_numbers tool — for observing raw AG-UI events.",
     },
 }
 
