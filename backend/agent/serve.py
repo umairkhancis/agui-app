@@ -2,16 +2,18 @@
 FastAPI server that exposes ONE LangGraph agent via the AG-UI protocol.
 
 Two agents are available in this repo:
-  - src.food_discovery.agent   → the Talabat food discovery agent (default)
-  - src.demo.agent             → the CopilotKit /demo tools-showcase agent
+  - src.food_discovery.agent   → the Talabat food discovery agent
+  - src.demo.agent             → the CopilotKit /demo tools-showcase agent (default)
 
-Swap which one is served by changing the import below at build/deploy time.
-The two agents are fully isolated; they share no state schema and no tools.
+Select which one is served by setting AGENT in your .env file:
+  AGENT=demo            → src.demo.agent (default)
+  AGENT=food_discovery  → src.food_discovery.agent
 
 Run locally:   uv run python serve.py
 Run in Docker: CMD ["uv", "run", "python", "serve.py"]
 """
 
+import importlib
 import os
 
 import uvicorn
@@ -22,16 +24,31 @@ from langgraph.checkpoint.memory import MemorySaver
 from copilotkit import LangGraphAGUIAgent
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
 
-# ─── Pick which agent to serve ─────────────────────────────────────────────
-# Comment one block, uncomment the other.
+# ─── Pick which agent to serve via AGENT env var ───────────────────────────
 
-from src.food_discovery.agent import graph
-AGENT_NAME = "food_discovery_agent"
-AGENT_DESCRIPTION = "Talabat food discovery agent — drives the canvas via tools."
+_AGENTS = {
+    "demo": {
+        "module": "src.demo.agent",
+        "name": "demo_agent",
+        "description": "CopilotKit tools-showcase agent (flights, todos, a2ui, charts).",
+    },
+    "food_discovery": {
+        "module": "src.food_discovery.agent",
+        "name": "food_discovery_agent",
+        "description": "Talabat food discovery agent — drives the canvas via tools.",
+    },
+}
 
-# from src.demo.agent import graph
-# AGENT_NAME = "demo_agent"
-# AGENT_DESCRIPTION = "CopilotKit tools-showcase agent (flights, todos, a2ui, charts)."
+_agent_key = os.getenv("AGENT", "demo")
+if _agent_key not in _AGENTS:
+    raise ValueError(
+        f"Unknown AGENT={_agent_key!r}. Valid values: {', '.join(_AGENTS)}"
+    )
+
+_cfg = _AGENTS[_agent_key]
+graph = importlib.import_module(_cfg["module"]).graph
+AGENT_NAME = _cfg["name"]
+AGENT_DESCRIPTION = _cfg["description"]
 
 # ─── Server plumbing ───────────────────────────────────────────────────────
 
